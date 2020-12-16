@@ -1,0 +1,10 @@
+version: "3.7"
+
+services:
+  app:
+    build: .
+    env_file: .env
+    init: true
+    restart: always
+    environment:
+      TIME: "0 13,21 * * 1-5"
