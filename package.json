@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "start": "node src/index.js",
     "lint": "eslint -c .eslintrc.json src/ --ext .js",
     "lint:errors": "eslint -c .eslintrc.json src/ --ext .js --quiet",
     "lint:fix": "eslint  -c .eslintrc.json src/ --ext .js --fix"

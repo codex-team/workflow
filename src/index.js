@@ -65,45 +65,47 @@ query($id: ID!){
 }
 `
 
-async function notify(data) {
+async function notify (data) {
   return axios({
     method: 'POST',
     url: NOTIFIER_URL,
     data: 'message=' + encodeURIComponent(data)
   })
 }
-
-function parseBacklogCard(members) {
+function parseQuery (members, response) {
+  const data = response.map((items) => {
+    if (items.state === 'NOTE_ONLY') {
+      return (items.note)
+    } else if (items.state === 'CONTENT_ONLY') {
+      if (items.content.__typename === 'PullRequest') { return ('@' + items.content.author.login + ' ' + items.content.url) }
+      if (items.content.__typename === 'Issue') {
+        const people = items.content.assignees.nodes.map((item) => {
+          return '@' + item.login + ' '
+        })
+        return (people + ' ' + items.content.url)
+      }
+    }
+    return ''
+  })
+  let processed = [...data]
+  for (let i = 0; i < members.length; i++) {
+    processed = processed.map((x) => x.replace(new RegExp('@' + members[i].name, 'g'), ''))
+  }
+  processed = processed.map((x) => x.replace(/(\r\n|\n|\r)/gm, ''))
+  data.forEach((items, index) => {
+    for (let i = 0; i < members.length; i++) {
+      if (items.includes('@' + members[i].name)) {
+        members[i].tasks.push(processed[index])
+      }
+    }
+  })
+  return members
+}
+function backlogCardQuery (members) {
   return octokit
     .graphql(SPRING_BACKLOG_CARDS_QUERY, { id: COLUMN_NODE_ID })
     .then((query) => {
-      const data = query.node.cards.nodes.map((items) => {
-        if (items.state === 'NOTE_ONLY') {
-          return (items.note)
-        }
-        if (items.state === 'CONTENT_ONLY') {
-          if (items.content.__typename === 'PullRequest') { return ('@' + items.content.author.login + ' ' + items.content.url) }
-          if (items.content.__typename === 'Issue') {
-            const people = items.content.assignees.nodes.map((item) => {
-              return '@' + item.login + ' '
-            })
-            return (people + ' ' + items.content.url)
-          }
-        }
-      })
-      let processed = [...data]
-      for (let i = 0; i < members.length; i++) {
-        processed = processed.map((x) => x.replace(new RegExp('@' + members[i].name, 'g'), ''))
-      }
-      processed = processed.map((x) => x.replace(/(\r\n|\n|\r)/gm, ''))
-      data.map((items, index) => {
-        for (let i = 0; i < members.length; i++) {
-          if (items.includes('@' + members[i].name)) {
-            members[i].tasks.push(processed[index])
-          }
-        }
-      })
-      return members
+      return parseQuery(members, query.node.cards.nodes)
     })
     .catch((err) => {
       console.error("Can't make test request for cards\n", err)
@@ -113,7 +115,7 @@ function parseBacklogCard(members) {
 const getMembersName = (memberList) => {
   const members = []
   if (memberList) {
-    memberList.split(' ').map((items) => {
+    memberList.split(' ').forEach((items) => {
       members.push({
         name: items,
         tasks: []
@@ -124,7 +126,7 @@ const getMembersName = (memberList) => {
   return octokit
     .graphql(MEMBERS_QUERY)
     .then((query) => {
-      query.organization.membersWithRole.nodes.map((items) => {
+      query.organization.membersWithRole.nodes.forEach((items) => {
         members.push({
           name: items.login,
           tasks: []
@@ -138,25 +140,27 @@ const getMembersName = (memberList) => {
     })
 }
 
+async function notifySpringBacklogs () {
+  let dataToSend = "📌 Sprint's backlog \n\n"
+  const response = await backlogCardQuery(await getMembersName(MENTION))
+  response.forEach((items) => {
+    dataToSend += ('@' + items.name)
+    dataToSend += '\n'
+    items.tasks.forEach((data) => {
+      dataToSend += ('⚡️ ' + data + '\n')
+    })
+    dataToSend += '\n\n'
+  })
+  return dataToSend
+}
 
-async function main() {
+async function main () {
+  console.log(await notifySpringBacklogs())
   const job = new CronJob(
     PR_TIME,
-    () => {
-      console.log('Firing pr job');
-      (async () => {
-        let dataToSend = "📌 Sprint's backlog \n\n"
-        const response = await parseBacklogCard(await getMembersName(MENTION))
-        response.map((items) => {
-          dataToSend += ('@' + items.name)
-          dataToSend += '\n'
-          items.tasks.map((data) => {
-            dataToSend += ('⚡️ ' + data + '\n')
-          })
-          dataToSend += '\n\n'
-        })
-        notify(dataToSend)
-      })()
+    async () => {
+      console.log('Firing pr job')
+      notify(await notifySpringBacklogs())
         .then(() => console.log('Job completed'))
         .catch(console.error)
     },
@@ -167,7 +171,6 @@ async function main() {
   job.start()
   console.log('Notifier started')
   console.log('Will notify at ' + PR_TIME)
-
 }
 
 main()
