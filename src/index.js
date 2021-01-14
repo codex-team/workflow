@@ -66,9 +66,9 @@ query($id: ID!){
 `
 /**
  * Sends POST request to telegram bot
- * @param {String} data - telegram message 
+ * @param {String} data - telegram message
  */
-async function notify(data) {
+async function notify (data) {
   return axios({
     method: 'POST',
     url: NOTIFIER_URL,
@@ -78,11 +78,11 @@ async function notify(data) {
 
 /**
  * Parse the response of spring backlog query.
- * @param {Array} members - array of object contains members list 
- * @param {Array} response - response of query as array of object 
+ * @param {Array} members - array of object contains members list
+ * @param {Array} response - response of query as array of object
  * @returns {Array} - array of object which contains members with task
  */
-function parseQuery(members, response) {
+function parseQuery (members, response) {
   const data = response.map((items) => {
     if (items.state === 'NOTE_ONLY') {
       return (items.note)
@@ -112,12 +112,11 @@ function parseQuery(members, response) {
   return members
 }
 
-
 /**
  * Request the GraphQL API of Github with SPRING_BACKLOG_CARDS_QUERY query
- * @param {Array} members - array of object contains members list 
+ * @param {Array} members - array of object contains members list
  */
-function backlogCardQuery(members) {
+function backlogCardQuery (members) {
   return octokit
     .graphql(SPRING_BACKLOG_CARDS_QUERY, { id: COLUMN_NODE_ID })
     .then((query) => {
@@ -129,10 +128,9 @@ function backlogCardQuery(members) {
     })
 }
 
-
 /**
- * Provides list of members with there task 
- * @param {String} memberList - contains memberList with space as separator 
+ * Provides list of members with there task
+ * @param {String} memberList - contains memberList with space as separator
  * @returns {Array} - returns Array of object contains user name and it's task
  */
 const getMembersName = (memberList) => {
@@ -168,7 +166,7 @@ const getMembersName = (memberList) => {
  * It parse the Array of object with members and it's task into message.
  * @returns {String} - Parsed message for telegram bot
  */
-async function notifySpringBacklogs() {
+async function notifySpringBacklogs () {
   let dataToSend = "📌 Sprint's backlog \n\n"
   const response = await backlogCardQuery(await getMembersName(MENTION))
   response.forEach((items) => {
@@ -185,7 +183,7 @@ async function notifySpringBacklogs() {
 /**
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
-async function main() {
+async function main () {
   console.log(await notifySpringBacklogs())
   const job = new CronJob(
     PR_TIME,
