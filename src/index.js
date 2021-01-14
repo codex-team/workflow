@@ -64,15 +64,25 @@ query($id: ID!){
   }
 }
 `
-
-async function notify (data) {
+/**
+ * Sends POST request to telegram bot
+ * @param {String} data - telegram message 
+ */
+async function notify(data) {
   return axios({
     method: 'POST',
     url: NOTIFIER_URL,
     data: 'message=' + encodeURIComponent(data)
   })
 }
-function parseQuery (members, response) {
+
+/**
+ * Parse the response of spring backlog query.
+ * @param {Array} members - array of object contains members list 
+ * @param {Array} response - response of query as array of object 
+ * @returns {Array} - array of object which contains members with task
+ */
+function parseQuery(members, response) {
   const data = response.map((items) => {
     if (items.state === 'NOTE_ONLY') {
       return (items.note)
@@ -101,7 +111,13 @@ function parseQuery (members, response) {
   })
   return members
 }
-function backlogCardQuery (members) {
+
+
+/**
+ * Request the GraphQL API of Github with SPRING_BACKLOG_CARDS_QUERY query
+ * @param {Array} members - array of object contains members list 
+ */
+function backlogCardQuery(members) {
   return octokit
     .graphql(SPRING_BACKLOG_CARDS_QUERY, { id: COLUMN_NODE_ID })
     .then((query) => {
@@ -112,6 +128,13 @@ function backlogCardQuery (members) {
       process.exit(1)
     })
 }
+
+
+/**
+ * Provides list of members with there task 
+ * @param {String} memberList - contains memberList with space as separator 
+ * @returns {Array} - returns Array of object contains user name and it's task
+ */
 const getMembersName = (memberList) => {
   const members = []
   if (memberList) {
@@ -140,7 +163,12 @@ const getMembersName = (memberList) => {
     })
 }
 
-async function notifySpringBacklogs () {
+/**
+ * Use to create message for telegram bot.
+ * It parse the Array of object with members and it's task into message.
+ * @returns {String} - Parsed message for telegram bot
+ */
+async function notifySpringBacklogs() {
   let dataToSend = "📌 Sprint's backlog \n\n"
   const response = await backlogCardQuery(await getMembersName(MENTION))
   response.forEach((items) => {
@@ -154,7 +182,10 @@ async function notifySpringBacklogs () {
   return dataToSend
 }
 
-async function main () {
+/**
+ * Call the Github GraphQL API, parse its response to message and add that message as cron job.
+ */
+async function main() {
   console.log(await notifySpringBacklogs())
   const job = new CronJob(
     PR_TIME,
