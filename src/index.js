@@ -113,7 +113,7 @@ function parseQuery(members, response) {
 
     return '';
   });
-  let processed = [...data];
+  let processed = [ ...data ];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
