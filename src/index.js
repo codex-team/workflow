@@ -10,19 +10,27 @@ const MENTION = process.env.MENTION;
 const PR_TIME = process.env.PR_TIME || '0 9,18 * * 1-5';
 
 const octokit = new Octokit({ auth: TOKEN });
-
+/**
+ * Query to select first 30 members of organization `codex-team` with
+ * actual numbers of members as totalCount and login names of members.
+ */
 const MEMBERS_QUERY = `
 query {
   organization(login: "codex-team") {
-   membersWithRole(first:30){
-    totalCount
-    nodes{
-      login
-      }
+    membersWithRole(first:30){
+      totalCount
+        nodes{
+          login
+        }
     }
   }
 }
 `;
+/**
+ * Query to select the content of project column whose id passed in query.
+ * The content of project column is contains first 30 card which is of three type.
+ * it includes fetching card content,issues and pull requestes.s
+ */
 const SPRINTS_BACKLOG_CARDS_QUERY = `
 query($id: ID!){
   node(id: $id) {
@@ -105,7 +113,7 @@ function parseQuery(members, response) {
 
     return '';
   });
-  let processed = [ ...data ];
+  let processed = [...data];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
