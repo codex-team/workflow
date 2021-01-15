@@ -23,7 +23,7 @@ query {
   }
 }
 `
-const SPRING_BACKLOG_CARDS_QUERY = `
+const SPRINTS_BACKLOG_CARDS_QUERY = `
 query($id: ID!){
   node(id: $id) {
     ... on ProjectColumn {
@@ -68,7 +68,7 @@ query($id: ID!){
  * Sends POST request to telegram bot
  * @param {String} data - telegram message
  */
-async function notify (data) {
+async function notify(data) {
   return axios({
     method: 'POST',
     url: NOTIFIER_URL,
@@ -77,34 +77,34 @@ async function notify (data) {
 }
 
 /**
- * Parse the response of spring backlog query.
+ * Parse the response of sprints backlog query.
  * @param {Array} members - array of object contains members list
  * @param {Array} response - response of query as array of object
  * @returns {Array} - array of object which contains members with task
  */
-function parseQuery (members, response) {
+function parseQuery(members, response) {
   const data = response.map((items) => {
     if (items.state === 'NOTE_ONLY') {
       return (items.note)
     } else if (items.state === 'CONTENT_ONLY') {
-      if (items.content.__typename === 'PullRequest') { return ('@' + items.content.author.login + ' ' + items.content.url) }
+      if (items.content.__typename === 'PullRequest') { return (`@${items.content.author.login} ${items.content.url}`) }
       if (items.content.__typename === 'Issue') {
         const people = items.content.assignees.nodes.map((item) => {
-          return '@' + item.login + ' '
+          return `@${item.login} `
         })
-        return (people + ' ' + items.content.url)
+        return (`${people} ${items.content.url}`)
       }
     }
     return ''
   })
   let processed = [...data]
   for (let i = 0; i < members.length; i++) {
-    processed = processed.map((x) => x.replace(new RegExp('@' + members[i].name, 'g'), ''))
+    processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''))
   }
   processed = processed.map((x) => x.replace(/(\r\n|\n|\r)/gm, ''))
   data.forEach((items, index) => {
     for (let i = 0; i < members.length; i++) {
-      if (items.includes('@' + members[i].name)) {
+      if (items.includes(`@${members[i].name}`)) {
         members[i].tasks.push(processed[index])
       }
     }
@@ -113,18 +113,14 @@ function parseQuery (members, response) {
 }
 
 /**
- * Request the GraphQL API of Github with SPRING_BACKLOG_CARDS_QUERY query
+ * Request the GraphQL API of Github with SPRINTS_BACKLOG_CARDS_QUERY query
  * @param {Array} members - array of object contains members list
  */
-function backlogCardQuery (members) {
+function backlogCardQuery(members) {
   return octokit
-    .graphql(SPRING_BACKLOG_CARDS_QUERY, { id: COLUMN_NODE_ID })
+    .graphql(SPRINTS_BACKLOG_CARDS_QUERY, { id: COLUMN_NODE_ID })
     .then((query) => {
       return parseQuery(members, query.node.cards.nodes)
-    })
-    .catch((err) => {
-      console.error("Can't make test request for cards\n", err)
-      process.exit(1)
     })
 }
 
@@ -155,10 +151,6 @@ const getMembersName = (memberList) => {
       })
       return members
     })
-    .catch((err) => {
-      console.error("Can't make test request for Members\n", err)
-      process.exit(1)
-    })
 }
 
 /**
@@ -166,14 +158,14 @@ const getMembersName = (memberList) => {
  * It parse the Array of object with members and it's task into message.
  * @returns {String} - Parsed message for telegram bot
  */
-async function notifySpringBacklogs () {
+async function notifySprintsBacklogs() {
   let dataToSend = "📌 Sprint's backlog \n\n"
   const response = await backlogCardQuery(await getMembersName(MENTION))
   response.forEach((items) => {
-    dataToSend += ('@' + items.name)
+    dataToSend += (`@${items.name}`)
     dataToSend += '\n'
     items.tasks.forEach((data) => {
-      dataToSend += ('⚡️ ' + data + '\n')
+      dataToSend += (`⚡️ ${data} \n`)
     })
     dataToSend += '\n\n'
   })
@@ -183,13 +175,11 @@ async function notifySpringBacklogs () {
 /**
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
-async function main () {
-  console.log(await notifySpringBacklogs())
+async function main() {
   const job = new CronJob(
     PR_TIME,
     async () => {
-      console.log('Firing pr job')
-      notify(await notifySpringBacklogs())
+      notify(await notifySprintsBacklogs())
         .then(() => console.log('Job completed'))
         .catch(console.error)
     },

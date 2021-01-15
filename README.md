@@ -17,7 +17,7 @@ $ yarn install
 
 ## Set Environment Variables & run 
 
-Rename `.env.example` to `.env` and set require env for application.
+Rename `.env.example` to `.env.sample` and set require env for application.
 Then run with following command.
 ```bash
 $ yarn start
