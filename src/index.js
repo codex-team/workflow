@@ -7,7 +7,7 @@ const TOKEN = process.env.TOKEN;
 const COLUMN_NODE_ID = process.env.COLUMN_NODE_ID;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
-const PR_TIME = process.env.PR_TIME || '0 9,18 * * 1-5';
+const PR_TIME = process.env.PR_TIME;// || '0 9,18 * * 1-5';
 
 const octokit = new Octokit({ auth: TOKEN });
 /**
@@ -28,8 +28,8 @@ query {
 `;
 /**
  * Query to select the content of project column whose id passed in query.
- * The content of project column is contains first 30 card which is of three type.
- * it includes fetching card content,issues and pull requestes.s
+ * The content of project column contains first 30 card which is of three
+ * types: card text content, issues and pull requests.
  */
 const SPRINTS_BACKLOG_CARDS_QUERY = `
 query($id: ID!){
@@ -150,7 +150,7 @@ function backlogCardQuery(members) {
  * @param {string} memberList - contains memberList with space as separator
  * @returns {Array} - returns Array of object contains user name and it's task
  */
-const getMembersName = (memberList) => {
+function getMembersName(memberList) {
   const members = [];
 
   if (memberList) {
