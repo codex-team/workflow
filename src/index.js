@@ -7,7 +7,11 @@ const TOKEN = process.env.TOKEN;
 const COLUMN_NODE_ID = process.env.COLUMN_NODE_ID;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
-const PR_TIME = process.env.PR_TIME;// || '0 9,18 * * 1-5';
+/**
+ * The default cron expression described as:
+ * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
+ */
+const PR_TIME = process.env.PR_TIME || '0 9,18 * * 1-5';
 
 const octokit = new Octokit({ auth: TOKEN });
 /**
@@ -113,7 +117,7 @@ function parseQuery(members, response) {
 
     return '';
   });
-  let processed = [ ...data ];
+  let processed = [...data];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
