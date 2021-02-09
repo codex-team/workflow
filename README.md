@@ -22,3 +22,32 @@ Then run with following command.
 ```bash
 $ yarn start
 ```
+
+
+<!--
+
+Personal Token access: 
+- repo - public_repo
+- admin:org - read:org
+
+
+GitHub GraphQL request for getting list of projects and columns:
+
+```graphql
+query {
+  organization(login: "codex-team") {
+    project(number: 10) {
+      id,
+      name,
+      columns(first: 10) {
+        edges {
+          node {
+            id,
+            name
+          } 
+        }
+      }
+    }
+  }
+}
+```

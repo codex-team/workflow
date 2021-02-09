@@ -7,7 +7,7 @@ const TOKEN = process.env.TOKEN;
 const COLUMN_NODE_ID = process.env.COLUMN_NODE_ID;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
-const PR_TIME = process.env.PR_TIME;// || '0 9,18 * * 1-5';
+const PR_TIME = process.env.PR_TIME;
 
 const octokit = new Octokit({ auth: TOKEN });
 /**
