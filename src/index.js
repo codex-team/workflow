@@ -1,64 +1,72 @@
-require("dotenv").config();
-const { Octokit } = require("@octokit/core");
-const axios = require("axios").default;
-const CronJob = require("cron").CronJob;
+require('dotenv').config();
+const { Octokit } = require('@octokit/core');
+const axios = require('axios').default;
+const CronJob = require('cron').CronJob;
 
 const TOKEN = process.env.TOKEN;
 const COLUMN_NODE_ID = process.env.COLUMN_NODE_ID;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
-const PR_TIME = process.env.PR_TIME || "0 9,18 * * 1-5";
-const SOZVON_TIME = process.env.SOZVON_TIME || "0 21 * * 1-5";
+
+/**
+ * The default cron expression described as:
+ * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
+ */
+const PR_TIME = process.env.PR_TIME || '0 9,18 * * 1-5';
 
 const octokit = new Octokit({ auth: TOKEN });
-
-const CARDS_QUERY = `
-query ($id: ID!) {
-  node (id: $id) {
+/**
+ * Query to select first 30 members of organization `codex-team` with
+ * actual numbers of members as totalCount and login names of members.
+ */
+const MEMBERS_QUERY = `
+query {
+  organization(login: "codex-team") {
+    membersWithRole(first:30){
+      totalCount
+        nodes{
+          login
+        }
+    }
+  }
+}
+`;
+/**
+ * Query to select the content of project column whose id passed in query.
+ * The content of project column contains first 30 card which is of three
+ * types: card text content, issues and pull requests.
+ */
+const SPRINTS_BACKLOG_CARDS_QUERY = `
+query($id: ID!){
+  node(id: $id) {
     ... on ProjectColumn {
       name
-      cards(first: 20) {
+      cards(first: 30) {
+        __typename
         totalCount
         nodes {
+          id
+          note
+          state
+          creator {
+            login
+          }
           content {
             ... on PullRequest {
+              id
               __typename
               url
+              author {
+                login
+              }
             }
-            ... on Issue {
-              __typename
+            ... on Issue{
+              id
               url
-              timelineItems(first: 20) {
-                nodes {
-                  __typename
-                  ... on CrossReferencedEvent {
-                     source {
-                      __typename
-                      ... on PullRequest {
-                        url
-                      }
-                    }
-                    target {
-                      __typename
-                      ... on PullRequest {
-                        url
-                      }
-                    }
-                  }
-                  ... on ConnectedEvent {
-                    source {
-                      __typename
-                      ... on PullRequest {
-                        url
-                      }
-                    }
-                    subject {
-                      __typename
-                      ... on PullRequest {
-                        url
-                      }
-                    }
-                  }
+              __typename
+              assignees{
+                nodes{
+                  login
                 }
               }
             }
@@ -70,116 +78,152 @@ query ($id: ID!) {
 }
 `;
 
-function extractPullRequests(cards) {
-  const prs = new Set();
-  for (let card of cards) {
-    card = card.content;
-    if (!card) continue;
-    if (card.__typename === "Issue") {
-      for (const event of card.timelineItems.nodes) {
-        if (event.source) {
-          switch (event.__typename) {
-            case "ConnectedEvent":
-              prs.add(event.subject.url);
-              break;
-            case "CrossReferencedEvent":
-              prs.add(event.source.url);
-              break;
-          }
-        }
-      }
-    } else if (card.__typename === "PullRequest") {
-      prs.add(card.url);
-    }
-  }
-  return [...prs];
-}
-
-function prsToText(prs) {
-  return (
-    "Requests to review 😊\n" +
-    MENTION.split(",")
-      .map((x) => x.trim())
-      .map((x) => "@" + x)
-      .join(" ") +
-    "\n\n" +
-    prs.join("\n")
-  );
-}
-
+/**
+ * Sends POST request to telegram bot
+ *
+ * @param {string} data - telegram message
+ * @returns {Promise} - returns a promise to catch error.
+ */
 async function notify(data) {
   return axios({
-    method: "POST",
+    method: 'POST',
     url: NOTIFIER_URL,
-    data: "message=" + encodeURIComponent(data)
-  })
-}
-
-async function sendOpenPrs() {
-  const query = await octokit.graphql(CARDS_QUERY, { id: COLUMN_NODE_ID });
-  console.log(query);
-  console.log(query.node.cards.nodes);
-  const prs = extractPullRequests(query.node.cards.nodes);
-  console.log(prs);
-
-  const resp = await axios({
-    method: "POST",
-    url: NOTIFIER_URL,
-    data: "message=" + encodeURIComponent(prsToText(prs)),
+    data: 'message=' + encodeURIComponent(data),
   });
-  console.log(resp.status);
-  console.log(resp.data);
 }
 
-function check() {
+/**
+ * Parse the response of sprints backlog query.
+ *
+ * @param {Array} members - array of object contains members list
+ * @param {Array} response - response of query as array of object
+ * @returns {Array} - array of object which contains members with task
+ */
+function parseQuery(members, response) {
+  const data = response.map((items) => {
+    if (items.state === 'NOTE_ONLY') {
+      return (items.note);
+    } else if (items.state === 'CONTENT_ONLY') {
+      if (items.content.__typename === 'PullRequest') {
+        return (`@${items.content.author.login} ${items.content.url}`);
+      }
+      if (items.content.__typename === 'Issue') {
+        const people = items.content.assignees.nodes.map((item) => {
+          return `@${item.login} `;
+        });
+
+        return (`${people} ${items.content.url}`);
+      }
+    }
+
+    return '';
+  });
+  let processed = [...data];
+
+  for (let i = 0; i < members.length; i++) {
+    processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
+  }
+  processed = processed.map((x) => x.replace(/(\r\n|\n|\r)/gm, ''));
+  data.forEach((items, index) => {
+    for (let i = 0; i < members.length; i++) {
+      if (items.includes(`@${members[i].name}`)) {
+        members[i].tasks.push(processed[index]);
+      }
+    }
+  });
+
+  return members;
+}
+
+/**
+ * Request the GraphQL API of Github with SPRINTS_BACKLOG_CARDS_QUERY query
+ *
+ * @param {Array} members - array of object contains members list
+ * @returns {Array} - returns the parsed output of query.
+ */
+function backlogCardQuery(members) {
   return octokit
-    .graphql(CARDS_QUERY, { id: COLUMN_NODE_ID })
+    .graphql(SPRINTS_BACKLOG_CARDS_QUERY, { id: COLUMN_NODE_ID })
     .then((query) => {
-      console.log(query);
-      console.log(query.node.cards.nodes);
-      console.info(
-        "Preview:\n" + prsToText(extractPullRequests(query.node.cards.nodes))
-      );
-    })
-    .catch((err) => {
-      console.error("Can't make test request\n", err);
-      process.exit(1);
+      return parseQuery(members, query.node.cards.nodes);
     });
 }
 
-const SOZVON_MSG = `☝️
-Join the meeting in Discord!
-@specc @guryn @khaydarovm @nikmel2803 @gohabereg @ilyamore88 @GeekaN @augustovich @n0str @f0m41h4u7 @polina_shneider @oybekmuslimov @xemk4`
+/**
+ * Provides list of members with there task
+ *
+ * @param {string} memberList - contains memberList with space as separator
+ * @returns {Array} - returns Array of object contains user name and it's task
+ */
+function getMembersName(memberList) {
+  const members = [];
 
+  if (memberList) {
+    memberList.split(' ').forEach((items) => {
+      members.push({
+        name: items,
+        tasks: [],
+      });
+    });
+
+    return members;
+  }
+
+  return octokit
+    .graphql(MEMBERS_QUERY)
+    .then((query) => {
+      query.organization.membersWithRole.nodes.forEach((items) => {
+        members.push({
+          name: items.login,
+          tasks: [],
+        });
+      });
+
+      return members;
+    });
+};
+
+/**
+ * Use to create message for telegram bot.
+ * It parse the Array of object with members and it's task into message.
+ *
+ * @returns {string} - Parsed message for telegram bot
+ */
+async function notifySprintsBacklogs() {
+  let dataToSend = "📌 Sprint's backlog \n\n";
+  const response = await backlogCardQuery(await getMembersName(MENTION));
+
+  response.forEach((items) => {
+    dataToSend += (`@${items.name}`);
+    dataToSend += '\n';
+    items.tasks.forEach((data) => {
+      dataToSend += (`⚡️ ${data} \n`);
+    });
+    dataToSend += '\n\n';
+  });
+
+  return dataToSend;
+}
+
+/**
+ * Call the Github GraphQL API, parse its response to message and add that message as cron job.
+ */
 async function main() {
-  await check();
-  console.log("Successful check, continuing");
   const job = new CronJob(
     PR_TIME,
-    () => {
-      console.log("Firing pr job");
-      sendOpenPrs()
-        .then(() => console.log("Job completed"))
+    async () => {
+      notify(await notifySprintsBacklogs())
+        .then(() => console.log('Job completed'))
         .catch(console.error);
     },
     null,
     true,
-    "Europe/Moscow"
+    'Europe/Moscow'
   );
-  job.start();
-  console.log("Notifier started");
-  console.log("Will notify at " + PR_TIME);
 
-  const sozvonJob = new CronJob(SOZVON_TIME, () => {
-    console.log("Firing sozvon job");
-    notify(SOZVON_MSG)
-      .then(() => console.log("OK"))
-      .catch(console.error)   
-  }, null, true, "Europe/Moscow")
-  sozvonJob.start();
-  console.log("Sozvon started");
-  console.log("Will notify at " + SOZVON_TIME);
-  notify("👨‍🌾PR + Sozvon bot started").then(() => "Notify to chat OK").catch(console.error);
+  job.start();
+  console.log('Notifier started');
+  console.log('Will notify at ' + PR_TIME);
 }
 
 main();
