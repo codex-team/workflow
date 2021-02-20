@@ -64,7 +64,7 @@ query($id: ID!){
               id
               url
               __typename
-              assignees{
+              assignees(first:10){
                 nodes{
                   login
                 }
