@@ -13,7 +13,11 @@ const MENTION = process.env.MENTION;
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
 const PR_TIME = process.env.PR_TIME || '0 9,18 * * 1-5';
-
+/**
+ * The default cron expression described as:
+ * At 21:00 on every day-of-week from Monday through Friday.
+ */
+const MEETING_TIME = process.env.MEETING_TIME || '0 21 * * 1-5';
 const octokit = new Octokit({ auth: TOKEN });
 /**
  * Query to select first 30 members of organization `codex-team` with
@@ -118,7 +122,7 @@ function parseQuery(members, response) {
 
     return '';
   });
-  let processed = [...data];
+  let processed = [ ...data ];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
@@ -206,6 +210,14 @@ async function notifySprintsBacklogs() {
 }
 
 /**
+ * Meeting Message to display
+ */
+const MEETING_MSG = `☝️ Join the meeting in Discord!
+@specc @guryn @khaydarovm @nikmel2803 @xemk4
+@gohabereg @ilyamore88 @GeekaN @augustovich 
+@n0str @f0m41h4u7 @polina_shneider @oybekmuslimov`;
+
+/**
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
 async function main() {
@@ -213,17 +225,29 @@ async function main() {
     PR_TIME,
     async () => {
       notify(await notifySprintsBacklogs())
-        .then(() => console.log('Job completed'))
+        .then(() => console.log('PR Job Completed.'))
         .catch(console.error);
     },
     null,
     true,
     'Europe/Moscow'
   );
+  const meetingJob = new CronJob(MEETING_TIME, () => {
+    notify(MEETING_MSG)
+      .then(() => console.log('Meeting Job Completed.'))
+      .catch(console.error);
+  },
+  null,
+  true,
+  'Europe/Moscow'
+  );
 
   job.start();
   console.log('Notifier started');
-  console.log('Will notify at ' + PR_TIME);
+  console.log('Will notify at:' + PR_TIME);
+  meetingJob.start();
+  console.log('Meeting notifier started');
+  console.log('Will notify at:' + MEETING_TIME);
 }
 
 main();
