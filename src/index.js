@@ -123,7 +123,7 @@ function parseQuery(members, response) {
 
     return '';
   });
-  let processed = [...data];
+  let processed = [ ...data ];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
@@ -211,18 +211,21 @@ async function notifySprintsBacklogs() {
 }
 
 /**
- * 
+ *
  * @param {string} mentionList - contains mentionList with space as separator
+ * @returns {string} -parsed messages
  */
-function parseMeetingMessage(mentionList){
-  var message = `☝️
+function parseMeetingMessage(mentionList) {
+  let message = `☝️
   Join the meeting in Discord!
   `;
+
   mentionList.split(' ').forEach((items) => {
-    message+=`@${items} `
+    message += `@${items} `;
   });
+
   return message;
- }
+}
 
 /**
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
@@ -240,11 +243,13 @@ async function main() {
     'Europe/Moscow'
   );
 
-  const meetingJob = new CronJob(MEETING_TIME, () => {
-    notify(parseMeetingMessage(MEETING_MENTION))
-      .then(() => console.log('Meeting Job Completed.'))
-      .catch(console.error);
-  },
+  const meetingJob = new CronJob(
+    MEETING_TIME,
+    () => {
+      notify(parseMeetingMessage(MEETING_MENTION))
+        .then(() => console.log('Meeting Job Completed.'))
+        .catch(console.error);
+    },
     null,
     true,
     'Europe/Moscow'
