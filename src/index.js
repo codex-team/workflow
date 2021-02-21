@@ -212,7 +212,8 @@ async function notifySprintsBacklogs() {
 /**
  * Meeting Message to display
  */
-const MEETING_MSG = `☝️ Join the meeting in Discord!
+const MEETING_MSG = `☝️
+Join the meeting in Discord!
 @specc @guryn @khaydarovm @nikmel2803 @xemk4
 @gohabereg @ilyamore88 @GeekaN @augustovich 
 @n0str @f0m41h4u7 @polina_shneider @oybekmuslimov`;
