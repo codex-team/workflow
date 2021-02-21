@@ -7,12 +7,13 @@ const TOKEN = process.env.TOKEN;
 const COLUMN_NODE_ID = process.env.COLUMN_NODE_ID;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
+const MEETING_MENTION = process.env.MEETING_MENTION;
 
 /**
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
-const PR_TIME = process.env.PR_TIME || '0 9,18 * * 1-5';
+const PR_TIME = process.env.PR_TIME || '0 9,20 * * 1-5';
 /**
  * The default cron expression described as:
  * At 21:00 on every day-of-week from Monday through Friday.
@@ -122,7 +123,7 @@ function parseQuery(members, response) {
 
     return '';
   });
-  let processed = [ ...data ];
+  let processed = [...data];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
@@ -210,13 +211,18 @@ async function notifySprintsBacklogs() {
 }
 
 /**
- * Meeting Message to display
+ * 
+ * @param {string} mentionList - contains mentionList with space as separator
  */
-const MEETING_MSG = `☝️
-Join the meeting in Discord!
-@specc @guryn @khaydarovm @nikmel2803 @xemk4
-@gohabereg @ilyamore88 @GeekaN @augustovich 
-@n0str @f0m41h4u7 @polina_shneider @oybekmuslimov`;
+function parseMeetingMessage(mentionList){
+  var message = `☝️
+  Join the meeting in Discord!
+  `;
+  mentionList.split(' ').forEach((items) => {
+    message+=`@${items} `
+  });
+  return message;
+ }
 
 /**
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
@@ -233,19 +239,21 @@ async function main() {
     true,
     'Europe/Moscow'
   );
+
   const meetingJob = new CronJob(MEETING_TIME, () => {
-    notify(MEETING_MSG)
+    notify(parseMeetingMessage(MEETING_MENTION))
       .then(() => console.log('Meeting Job Completed.'))
       .catch(console.error);
   },
-  null,
-  true,
-  'Europe/Moscow'
+    null,
+    true,
+    'Europe/Moscow'
   );
 
   job.start();
   console.log('Notifier started');
   console.log('Will notify at:' + PR_TIME);
+
   meetingJob.start();
   console.log('Meeting notifier started');
   console.log('Will notify at:' + MEETING_TIME);
