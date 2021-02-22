@@ -7,13 +7,18 @@ const TOKEN = process.env.TOKEN;
 const COLUMN_NODE_ID = process.env.COLUMN_NODE_ID;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
+const MEETING_MENTION = process.env.MEETING_MENTION;
 
 /**
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
-const PR_TIME = process.env.PR_TIME || '0 9,18 * * 1-5';
-
+const PR_TIME = process.env.PR_TIME || '0 9,20 * * 1-5';
+/**
+ * The default cron expression described as:
+ * At 21:00 on every day-of-week from Monday through Friday.
+ */
+const MEETING_TIME = process.env.MEETING_TIME || '0 21 * * 1-5';
 const octokit = new Octokit({ auth: TOKEN });
 /**
  * Query to select first 30 members of organization `codex-team` with
@@ -64,7 +69,7 @@ query($id: ID!){
               id
               url
               __typename
-              assignees{
+              assignees(first:10){
                 nodes{
                   login
                 }
@@ -118,7 +123,7 @@ function parseQuery(members, response) {
 
     return '';
   });
-  let processed = [...data];
+  let processed = [ ...data ];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
@@ -206,6 +211,23 @@ async function notifySprintsBacklogs() {
 }
 
 /**
+ *
+ * @param {string} mentionList - contains mentionList with space as separator
+ * @returns {string} -parsed messages
+ */
+function parseMeetingMessage(mentionList) {
+  let message = `☝️
+  Join the meeting in Discord!
+  `;
+
+  mentionList.split(' ').forEach((items) => {
+    message += `@${items} `;
+  });
+
+  return message;
+}
+
+/**
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
 async function main() {
@@ -213,7 +235,19 @@ async function main() {
     PR_TIME,
     async () => {
       notify(await notifySprintsBacklogs())
-        .then(() => console.log('Job completed'))
+        .then(() => console.log('PR Job Completed.'))
+        .catch(console.error);
+    },
+    null,
+    true,
+    'Europe/Moscow'
+  );
+
+  const meetingJob = new CronJob(
+    MEETING_TIME,
+    () => {
+      notify(parseMeetingMessage(MEETING_MENTION))
+        .then(() => console.log('Meeting Job Completed.'))
         .catch(console.error);
     },
     null,
@@ -223,7 +257,11 @@ async function main() {
 
   job.start();
   console.log('Notifier started');
-  console.log('Will notify at ' + PR_TIME);
+  console.log('Will notify at:' + PR_TIME);
+
+  meetingJob.start();
+  console.log('Meeting notifier started');
+  console.log('Will notify at:' + MEETING_TIME);
 }
 
 main();
