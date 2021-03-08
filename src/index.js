@@ -4,11 +4,16 @@ const axios = require('axios').default;
 const CronJob = require('cron').CronJob;
 
 const TOKEN = process.env.TOKEN;
-const COLUMN_NODE_ID = process.env.COLUMN_NODE_ID;
+const COLUMN_NODE_ID_TO_DO = process.env.COLUMN_NODE_ID_TO_DO;
+const COLUMN_NODE_ID_PR = process.env.COLUMN_NODE_ID_PR;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
 const MEETING_MENTION = process.env.MEETING_MENTION;
-
+/**
+ * The default cron expression described as:
+ * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
+ */
+const TO_DO_TIME = process.env.PR_TIME || '0 9,20 * * 1-5';
 /**
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
@@ -41,7 +46,7 @@ query {
  * The content of project column contains first 30 card which is of three
  * types: card text content, issues and pull requests.
  */
-const SPRINTS_BACKLOG_CARDS_QUERY = `
+const CARDS_QUERY = `
 query($id: ID!){
   node(id: $id) {
     ... on ProjectColumn {
@@ -141,14 +146,15 @@ function parseQuery(members, response) {
 }
 
 /**
- * Request the GraphQL API of Github with SPRINTS_BACKLOG_CARDS_QUERY query
+ * Request the GraphQL API of Github with CARDS_QUERY query
  *
  * @param {Array} members - array of object contains members list
+ * @param {string} columnID - column ID pass to CARDS_QUERY
  * @returns {Array} - returns the parsed output of query.
  */
-function backlogCardQuery(members) {
+function cardQuery(members, columnID) {
   return octokit
-    .graphql(SPRINTS_BACKLOG_CARDS_QUERY, { id: COLUMN_NODE_ID })
+    .graphql(CARDS_QUERY, { id: columnID })
     .then((query) => {
       return parseQuery(members, query.node.cards.nodes);
     });
@@ -192,19 +198,23 @@ function getMembersName(memberList) {
  * Use to create message for telegram bot.
  * It parse the Array of object with members and it's task into message.
  *
+ * @param {string} title - Title of parsed message.
+ * @param {string} columnID - column ID for Card Query.
  * @returns {string} - Parsed message for telegram bot
  */
-async function notifySprintsBacklogs() {
-  let dataToSend = "📌 Sprint's backlog \n\n";
-  const response = await backlogCardQuery(await getMembersName(MENTION));
+async function notifyMessage(title, columnID) {
+  let dataToSend = title + ' \n\n';
+  const response = await cardQuery(await getMembersName(MENTION), columnID);
 
   response.forEach((items) => {
-    dataToSend += (`@${items.name}`);
-    dataToSend += '\n';
-    items.tasks.forEach((data) => {
-      dataToSend += (`⚡️ ${data} \n`);
-    });
-    dataToSend += '\n\n';
+    if (items.tasks.length) {
+      dataToSend += (`@${items.name}`);
+      dataToSend += '\n';
+      items.tasks.forEach((data) => {
+        dataToSend += (`⚡️ ${data} \n`);
+      });
+      dataToSend += '\n\n';
+    }
   });
 
   return dataToSend;
@@ -231,10 +241,22 @@ function parseMeetingMessage(mentionList) {
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
 async function main() {
-  const job = new CronJob(
+  const toDoJob = new CronJob(
+    TO_DO_TIME,
+    async () => {
+      notify(await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO))
+        .then(() => console.log('PR Job Completed.'))
+        .catch(console.error);
+    },
+    null,
+    true,
+    'Europe/Moscow'
+  );
+
+  const prJob = new CronJob(
     PR_TIME,
     async () => {
-      notify(await notifySprintsBacklogs())
+      notify(await notifyMessage('🚜 Review Un progress', COLUMN_NODE_ID_PR))
         .then(() => console.log('PR Job Completed.'))
         .catch(console.error);
     },
@@ -255,8 +277,12 @@ async function main() {
     'Europe/Moscow'
   );
 
-  job.start();
-  console.log('Notifier started');
+  toDoJob.start();
+  console.log('To do list Notifier started');
+  console.log('Will notify at:' + TO_DO_TIME);
+
+  prJob.start();
+  console.log('PR review list Notifier started');
   console.log('Will notify at:' + PR_TIME);
 
   meetingJob.start();

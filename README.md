@@ -36,7 +36,7 @@ GitHub GraphQL request for getting list of projects and columns:
 ```graphql
 query {
   organization(login: "codex-team") {
-    project(number: 10) {
+    project(number: 11) {
       id,
       name,
       columns(first: 10) {
