@@ -25,80 +25,21 @@ const PR_TIME = process.env.PR_TIME || '0 9,20 * * 1-5';
  */
 const MEETING_TIME = process.env.MEETING_TIME || '0 21 * * 1-5';
 const octokit = new Octokit({ auth: TOKEN });
-/**
- * Query to select first 30 members of organization `codex-team` with
- * actual numbers of members as totalCount and login names of members.
- */
-const MEMBERS_QUERY = `
-query {
-  organization(login: "codex-team") {
-    membersWithRole(first:30){
-      totalCount
-        nodes{
-          login
-        }
-    }
-  }
-}
-`;
-/**
- * Query to select the content of project column whose id passed in query.
- * The content of project column contains first 30 card which is of three
- * types: card text content, issues and pull requests.
- */
-const CARDS_QUERY = `
-query($id: ID!){
-  node(id: $id) {
-    ... on ProjectColumn {
-      name
-      cards(first: 30) {
-        __typename
-        totalCount
-        nodes {
-          id
-          note
-          state
-          creator {
-            login
-          }
-          content {
-            ... on PullRequest {
-              id
-              __typename
-              url
-              author {
-                login
-              }
-            }
-            ... on Issue{
-              id
-              url
-              __typename
-              assignees(first:10){
-                nodes{
-                  login
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`;
+
+const MEMBERS_QUERY = require('./queries/members');
+const CARDS_QUERY = require('./queries/cards');
 
 /**
  * Sends POST request to telegram bot
  *
- * @param {string} data - telegram message
+ * @param {string} message - telegram message
  * @returns {Promise} - returns a promise to catch error.
  */
-async function notify(data) {
+async function notify(message) {
   return axios({
     method: 'POST',
     url: NOTIFIER_URL,
-    data: 'message=' + encodeURIComponent(data),
+    data: 'message=' + encodeURIComponent(message),
   });
 }
 
@@ -128,11 +69,13 @@ function parseQuery(members, response) {
 
     return '';
   });
+
   let processed = [ ...data ];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
   }
+
   processed = processed.map((x) => x.replace(/(\r\n|\n|\r)/gm, ''));
   data.forEach((items, index) => {
     for (let i = 0; i < members.length; i++) {
@@ -210,9 +153,11 @@ async function notifyMessage(title, columnID) {
     if (items.tasks.length) {
       dataToSend += (`@${items.name}`);
       dataToSend += '\n';
+
       items.tasks.forEach((data) => {
         dataToSend += (`⚡️ ${data} \n`);
       });
+
       dataToSend += '\n\n';
     }
   });
@@ -256,7 +201,7 @@ async function main() {
   const prJob = new CronJob(
     PR_TIME,
     async () => {
-      notify(await notifyMessage('🚜 Review Un progress', COLUMN_NODE_ID_PR))
+      notify(await notifyMessage('🚜 Pull requests for review', COLUMN_NODE_ID_PR))
         .then(() => console.log('PR Job Completed.'))
         .catch(console.error);
     },
