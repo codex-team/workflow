@@ -70,13 +70,13 @@ function parseQuery(members, response) {
     return '';
   });
 
-  let processed = [ ...data ];
+  let processed = [...data];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
   }
 
-  processed = processed.map((x) => x.replace(/(\r\n|\n|\r)/gm, ''));
+  processed = processed.map((x) => x.replace(/^\s+|\s+$/g, ''));
   data.forEach((items, index) => {
     for (let i = 0; i < members.length; i++) {
       if (items.includes(`@${members[i].name}`)) {
@@ -172,8 +172,7 @@ async function notifyMessage(title, columnID) {
  */
 function parseMeetingMessage(mentionList) {
   let message = `☝️
-  Join the meeting in Discord!
-  `;
+  Join the meeting in Discord!\n`;
 
   mentionList.split(' ').forEach((items) => {
     message += `@${items} `;
