@@ -39,7 +39,7 @@ async function notify(message) {
   return axios({
     method: 'POST',
     url: NOTIFIER_URL,
-    data: 'message=' + encodeURIComponent(message),
+    data: 'message=' + encodeURIComponent(message) + '&parse_mode=Markdown',
   });
 }
 
@@ -52,25 +52,41 @@ async function notify(message) {
  */
 function parseQuery(members, response) {
   const data = response.map((items) => {
+    let cardParsedData = '';
+
     if (items.state === 'NOTE_ONLY') {
-      return (items.note);
+      for (let i = 0; i < members.length; i++) {
+        if (items.note.includes(`@${members[i].name}`)) {
+          cardParsedData += items.note;
+          break;
+        }
+      }
     } else if (items.state === 'CONTENT_ONLY') {
       if (items.content.__typename === 'PullRequest') {
-        return (`@${items.content.author.login} ${items.content.url}`);
+        cardParsedData += `[${items.content.title}](${items.content.url}) @${items.content.author.login}`;
+        items.content.reviewRequests.nodes.forEach((node) => {
+          if (node.requestedReviewer.login) {
+            cardParsedData += `@${node.requestedReviewer.login}`;
+          }
+        });
+        items.content.assignees.nodes.forEach((node) => {
+          if (node.login) {
+            cardParsedData += `@${node.login}`;
+          }
+        });
       }
       if (items.content.__typename === 'Issue') {
-        const people = items.content.assignees.nodes.map((item) => {
-          return `@${item.login} `;
+        cardParsedData += `[${items.content.title}](${items.content.url})`;
+        items.content.assignees.nodes.forEach((item) => {
+          cardParsedData += `@${item.login} `;
         });
-
-        return (`${people} ${items.content.url}`);
       }
     }
 
-    return '';
+    return cardParsedData;
   });
 
-  let processed = [ ...data ];
+  let processed = [...data];
 
   for (let i = 0; i < members.length; i++) {
     processed = processed.map((x) => x.replace(new RegExp(`@${members[i].name}`, 'g'), ''));
@@ -150,16 +166,13 @@ async function notifyMessage(title, columnID) {
   const response = await cardQuery(await getMembersName(MENTION), columnID);
 
   response.forEach((items) => {
-    if (items.tasks.length) {
-      dataToSend += (`@${items.name}`);
-      dataToSend += '\n';
+    dataToSend += (`@${items.name}`);
+    dataToSend += '\n';
 
-      items.tasks.forEach((data) => {
-        dataToSend += (`⚡️ ${data} \n`);
-      });
-
-      dataToSend += '\n\n';
-    }
+    items.tasks.forEach((data) => {
+      dataToSend += (`${data} \n`);
+    });
+    dataToSend += '\n\n';
   });
 
   return dataToSend;
