@@ -315,13 +315,13 @@ async function notifyMessage(title, columnID) {
       return;
     }
 
-    dataToSend += `@${items.name}\n`;
+    dataToSend += `<b>${items.name}</b>\n`;
 
     items.tasks.forEach((data) => {
-      dataToSend += `- ${data}\n`;
+      dataToSend += `• ${data}\n`;
     });
 
-    dataToSend += '\n\n';
+    dataToSend += '\n';
   });
 
   return dataToSend;
@@ -333,7 +333,7 @@ async function notifyMessage(title, columnID) {
  * @returns {string} -parsed messages
  */
 function parseMeetingMessage(mentionList) {
-  let message = `☝️ Join the meeting in Discord!\n`;
+  let message = `☝️ Join the meeting in Discord!\n\n`;
 
   mentionList.split(' ').forEach((items) => {
     message += `@${items} `;
@@ -361,9 +361,7 @@ async function main() {
   const prJob = new CronJob(
     PR_TIME,
     async () => {
-      notify(
-        await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
-      )
+      notify(await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR))
         .then(() => console.log('PR Job Completed.'))
         .catch(console.error);
     },
