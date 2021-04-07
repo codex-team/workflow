@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { Octokit } = require('@octokit/core');
+const parseGithubUrl = require('parse-github-url');
 const axios = require('axios').default;
 const CronJob = require('cron').CronJob;
 
@@ -9,6 +10,8 @@ const COLUMN_NODE_ID_PR = process.env.COLUMN_NODE_ID_PR;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
 const MEETING_MENTION = process.env.MEETING_MENTION;
+const PARSE_MODE = 'HTML';
+
 /**
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
@@ -38,13 +41,13 @@ const PR_QUERY = require('./queries/pr');
  * @param {boolean} markdown - telegram message include markdown or not.
  * @returns {Promise} - returns a promise to catch error.
  */
-async function notify(message, markdown) {
-  const botMessage = 'message=' + encodeURIComponent(message) + (markdown ? '&parse_mode=Markdown' : '');
+async function notify(message) {
+  let messageData = `parse_mode=${PARSE_MODE}&disable_web_page_preview=True&message=${encodeURIComponent(message)}`;
 
   return axios({
     method: 'POST',
     url: NOTIFIER_URL,
-    data: botMessage,
+    data: messageData,
   });
 }
 
@@ -84,24 +87,56 @@ function replaceGithubLink(message, markdownLink) {
 }
 
 /**
+ * Escape chars in raw string which should not be processed as marked text
+ *
+ * List of chars to be transcoded
+ * https://core.telegram.org/bots/api#html-style
+ *
+ * @param {string} message - string to be processed
+ * @returns {string}
+ */
+function escapeChars(message) {
+  message = message.replaceAll('<', '&lt;');
+  message = message.replaceAll('>', '&gt;');
+  message = message.replaceAll('&', '&amp;');
+
+  return message;
+}
+
+/**
+ * Parse github link via jonschlinkert/parse-github-url module
+ *
+ * https://github.com/jonschlinkert/parse-github-url
+ *
+ * @param {string} url - any github link (to pr or issue for example)
+ * @returns {string} - HTML marked link to repo
+ */
+function createTaskBadge(url) {
+  const repoInfo = parseGithubUrl(url);
+
+  return `<a href="https://github.com/${repoInfo.repo}"><b>${repoInfo.name}</b></a>`;
+}
+
+/**
  * parse the response of GraphQL query for pull request.
  *
  * @param {object} content - response of GraphQL API.
  * @returns {string} - parsed message.
  */
 function pullRequestParser(content) {
-  let parsedTask = `[${content.title.replace(/[[\]']+/g, '')}](${content.url}) @${content.author.login}`;
+  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title)}</a> @${content.author.login}`;
 
-  content.reviewRequests.nodes.forEach((node) => {
-    if (node.requestedReviewer.login) {
-      parsedTask += `@${node.requestedReviewer.login}`;
-    }
-  });
-  content.assignees.nodes.forEach((node) => {
-    if (node.login) {
-      parsedTask += `@${node.login}`;
-    }
-  });
+  // content.reviewRequests.nodes.forEach((node) => {
+  //   if (node.requestedReviewer.login) {
+  //     parsedTask += `@${node.requestedReviewer.login}`;
+  //   }
+  // });
+  //
+  // content.assignees.nodes.forEach((node) => {
+  //   if (node.login) {
+  //     parsedTask += `@${node.login}`;
+  //   }
+  // });
 
   return parsedTask;
 }
@@ -113,7 +148,7 @@ function pullRequestParser(content) {
  * @returns {string} - parsed message.
  */
 function issuesParser(content) {
-  let parsedTask = `[${content.title.replace(/[[\]']+/g, '')}](${content.url})`;
+  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title, '')}</a>`;
 
   content.assignees.nodes.forEach((node) => {
     parsedTask += `@${node.login} `;
@@ -185,7 +220,7 @@ async function parseQuery(members, response) {
 
             return parsable[0]
               ? await parseGithubLink(items.note, parsable)
-              : items.note;
+              : escapeChars(items.note);
           }
         }
         const parsable = checkForParsableGithubLink(items.note);
@@ -275,12 +310,17 @@ async function notifyMessage(title, columnID) {
   );
 
   parsedData.forEach((items) => {
-    dataToSend += `@${items.name}`;
-    dataToSend += '\n';
+    /** Skip person with no tasks */
+    if (!items.tasks.length) {
+      return;
+    }
+
+    dataToSend += `@${items.name}\n`;
 
     items.tasks.forEach((data) => {
-      dataToSend += `${data} \n`;
+      dataToSend += `- ${data}\n`;
     });
+
     dataToSend += '\n\n';
   });
 
@@ -293,8 +333,7 @@ async function notifyMessage(title, columnID) {
  * @returns {string} -parsed messages
  */
 function parseMeetingMessage(mentionList) {
-  let message = `☝️
-  Join the meeting in Discord!\n`;
+  let message = `☝️ Join the meeting in Discord!\n`;
 
   mentionList.split(' ').forEach((items) => {
     message += `@${items} `;
@@ -310,8 +349,8 @@ async function main() {
   const toDoJob = new CronJob(
     TO_DO_TIME,
     async () => {
-      notify(await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO), true)
-        .then(() => console.log('PR Job Completed.'))
+      notify(await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO))
+        .then(() => console.log('Tasks Job Completed.'))
         .catch(console.error);
     },
     null,
@@ -323,7 +362,7 @@ async function main() {
     PR_TIME,
     async () => {
       notify(
-        await notifyMessage('🚜 Pull requests for review', COLUMN_NODE_ID_PR, true)
+        await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
       )
         .then(() => console.log('PR Job Completed.'))
         .catch(console.error);
