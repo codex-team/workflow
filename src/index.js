@@ -37,12 +37,11 @@ const PR_QUERY = require('./queries/pr');
 /**
  * Sends POST request to telegram bot
  *
- * @param {string} message - telegram message
- * @param {boolean} markdown - telegram message include markdown or not.
+ * @param {string} message - telegram message.
  * @returns {Promise} - returns a promise to catch error.
  */
 async function notify(message) {
-  let messageData = `parse_mode=${PARSE_MODE}&disable_web_page_preview=True&message=${encodeURIComponent(message)}`;
+  const messageData = `parse_mode=${PARSE_MODE}&disable_web_page_preview=True&message=${encodeURIComponent(message)}`;
 
   return axios({
     method: 'POST',
@@ -124,7 +123,7 @@ function createTaskBadge(url) {
  * @returns {string} - parsed message.
  */
 function pullRequestParser(content) {
-  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title)}</a> @${content.author.login}`;
+  const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title)}</a> @${content.author.login}`;
 
   // content.reviewRequests.nodes.forEach((node) => {
   //   if (node.requestedReviewer.login) {
@@ -148,7 +147,7 @@ function pullRequestParser(content) {
  * @returns {string} - parsed message.
  */
 function issuesParser(content) {
-  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title, '')}</a>`;
+  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title)}</a>`;
 
   content.assignees.nodes.forEach((node) => {
     parsedTask += `@${node.login} `;
