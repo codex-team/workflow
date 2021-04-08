@@ -37,7 +37,7 @@ const PR_QUERY = require('./queries/pr');
 /**
  * Sends POST request to telegram bot
  *
- * @param {string} message - telegram message.
+ * @param {string} message - telegram message
  * @returns {Promise} - returns a promise to catch error.
  */
 async function notify(message) {
@@ -95,9 +95,9 @@ function replaceGithubLink(message, markdownLink) {
  * @returns {string}
  */
 function escapeChars(message) {
-  message = message.replaceAll('<', '&lt;');
-  message = message.replaceAll('>', '&gt;');
-  message = message.replaceAll('&', '&amp;');
+  message = message.replace(/</g, '&lt;');
+  message = message.replace(/>/g, '&gt;');
+  message = message.replace(/&/g, '&amp;');
 
   return message;
 }
@@ -214,7 +214,7 @@ async function parseQuery(members, response) {
     await response.map(async (items) => {
       if (items.state === 'NOTE_ONLY') {
         for (let i = 0; i < members.length; i++) {
-          if (items.note.includes(`@${members[i].name}`)) {
+          if (items.note.includes(`@${members[i].name}`) || items.note.includes(`@${members[i].name.toLowerCase()}`)) {
             const parsable = checkForParsableGithubLink(items.note);
 
             return parsable[0]
@@ -243,15 +243,17 @@ async function parseQuery(members, response) {
   let cardDataWithoutMembers = [ ...parsedCardData ];
 
   for (let i = 0; i < members.length; i++) {
-    cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
-      x.replace(new RegExp(`@${members[i].name}`, 'g'), '')
-    );
+    cardDataWithoutMembers = cardDataWithoutMembers.map((x) => {
+      const data = x.replace(new RegExp(`@${members[i].name}`, 'g'), '');
+
+      return data.replace(new RegExp(`@${members[i].name.toLowerCase()}`, 'g'), '');
+    });
   }
   cardDataWithoutMembers = cardDataWithoutMembers.map((x) => x.replace(/^\s+|\s+$/g, ''));
 
   parsedCardData.forEach((items, index) => {
     for (let i = 0; i < members.length; i++) {
-      if (items.includes(`@${members[i].name}`)) {
+      if (items.includes(`@${members[i].name}`) || items.includes(`@${members[i].name.toLowerCase()}`)) {
         members[i].tasks.push(cardDataWithoutMembers[index]);
       }
     }
