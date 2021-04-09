@@ -68,7 +68,7 @@ function checkForParsableGithubLink(message) {
     return [true, owner, name, type, id];
   }
 
-  return [ false ];
+  return [false];
 }
 
 /**
@@ -214,7 +214,7 @@ async function parseQuery(members, response) {
     await response.map(async (items) => {
       if (items.state === 'NOTE_ONLY') {
         for (let i = 0; i < members.length; i++) {
-          if (items.note.includes(`@${members[i].name}`) || items.note.includes(`@${members[i].name.toLowerCase()}`)) {
+          if (items.note.includes(`@${members[i].name}`)) {
             const parsable = checkForParsableGithubLink(items.note);
 
             return parsable[0]
@@ -240,20 +240,18 @@ async function parseQuery(members, response) {
     })
   );
 
-  let cardDataWithoutMembers = [ ...parsedCardData ];
+  let cardDataWithoutMembers = [...parsedCardData];
 
   for (let i = 0; i < members.length; i++) {
-    cardDataWithoutMembers = cardDataWithoutMembers.map((x) => {
-      const data = x.replace(new RegExp(`@${members[i].name}`, 'g'), '');
-
-      return data.replace(new RegExp(`@${members[i].name.toLowerCase()}`, 'g'), '');
-    });
+    cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
+      x.replace(new RegExp(`@${members[i].name}`, 'g'), '')
+    );
   }
   cardDataWithoutMembers = cardDataWithoutMembers.map((x) => x.replace(/^\s+|\s+$/g, ''));
 
   parsedCardData.forEach((items, index) => {
     for (let i = 0; i < members.length; i++) {
-      if (items.includes(`@${members[i].name}`) || items.includes(`@${members[i].name.toLowerCase()}`)) {
+      if (items.includes(`@${members[i].name}`)) {
         members[i].tasks.push(cardDataWithoutMembers[index]);
       }
     }
