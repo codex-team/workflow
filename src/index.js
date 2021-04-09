@@ -68,7 +68,7 @@ function checkForParsableGithubLink(message) {
     return [true, owner, name, type, id];
   }
 
-  return [false];
+  return [ false ];
 }
 
 /**
@@ -240,7 +240,7 @@ async function parseQuery(members, response) {
     })
   );
 
-  let cardDataWithoutMembers = [...parsedCardData];
+  let cardDataWithoutMembers = [ ...parsedCardData ];
 
   for (let i = 0; i < members.length; i++) {
     cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
@@ -298,19 +298,25 @@ function getMembersName(memberList) {
  *
  * @param {string} title - Title of parsed message.
  * @param {string} columnID - column ID for Card Query.
+ * @param {boolean} includePersonWithNoTask - flag for including the person without task in message.
  * @returns {string} - Parsed message for telegram bot
  */
-async function notifyMessage(title, columnID) {
+async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
   let dataToSend = title + ' \n\n';
   const queryResponse = await graphqlQuery(CARDS_QUERY, { id: columnID });
   const parsedData = await parseQuery(
     getMembersName(MENTION),
     queryResponse.node.cards.nodes
   );
+  const personWithNoTask = [];
 
   parsedData.forEach((items) => {
     /** Skip person with no tasks */
     if (!items.tasks.length) {
+      if (includePersonWithNoTask && items.name != 'dependabot') {
+        personWithNoTask.push(items.name);
+      }
+
       return;
     }
 
@@ -322,6 +328,13 @@ async function notifyMessage(title, columnID) {
 
     dataToSend += '\n';
   });
+
+  if (includePersonWithNoTask) {
+    personWithNoTask.forEach((person) => {
+      dataToSend += `🏖 ${person}\n`;
+    });
+  }
+  dataToSend += '\n';
 
   return dataToSend;
 }
@@ -348,7 +361,7 @@ async function main() {
   const toDoJob = new CronJob(
     TO_DO_TIME,
     async () => {
-      notify(await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO))
+      notify(await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true))
         .then(() => console.log('Tasks Job Completed.'))
         .catch(console.error);
     },
