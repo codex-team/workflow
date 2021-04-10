@@ -4,15 +4,14 @@
  * types: card text content, issues and pull requests.
  */
 const CARDS_QUERY = `
-query($id: ID!){
+query($id: ID!) {
   node(id: $id) {
     ... on ProjectColumn {
       name
-      cards(first: 30) {
+      cards(first: 50) {
         __typename
         totalCount
         nodes {
-          id
           note
           state
           creator {
@@ -20,19 +19,33 @@ query($id: ID!){
           }
           content {
             ... on PullRequest {
-              id
+              title
               __typename
               url
               author {
                 login
               }
+              reviewRequests(first: 10) {
+                nodes {
+                  requestedReviewer {
+                    ... on User {
+                      login
+                    }
+                  }
+                }
+              }
+              assignees(first: 10) {
+                nodes {
+                  login
+                }
+              }
             }
-            ... on Issue{
-              id
+            ... on Issue {
+              title
               url
               __typename
-              assignees(first:10){
-                nodes{
+              assignees(first: 10) {
+                nodes {
                   login
                 }
               }
