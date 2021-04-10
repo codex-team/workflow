@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "node src/index.js",
+    "start:dev": "nodemon src/index.js",
     "lint": "eslint -c .eslintrc.json src/ --ext .js",
     "lint:errors": "eslint -c .eslintrc.json src/ --ext .js --quiet",
     "lint:fix": "eslint  -c .eslintrc.json src/ --ext .js --fix",
@@ -14,10 +15,12 @@
     "@octokit/core": "^3.1.2",
     "axios": "^0.19.2",
     "cron": "^1.8.2",
-    "dotenv": "^8.2.0"
+    "dotenv": "^8.2.0",
+    "parse-github-url": "^1.0.2"
   },
   "devDependencies": {
     "eslint": "^7.12.1",
-    "eslint-config-codex": "^1.6.0"
+    "eslint-config-codex": "^1.6.0",
+    "nodemon": "^2.0.7"
   }
 }
