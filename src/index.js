@@ -125,6 +125,9 @@ function createTaskBadge(url) {
 function pullRequestParser(content) {
   const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title)}</a> @${content.author.login}`;
 
+  /**
+   * @todo discuss if it is necessary to duplicate links to pr
+   */
   // content.reviewRequests.nodes.forEach((node) => {
   //   if (node.requestedReviewer.login) {
   //     parsedTask += `@${node.requestedReviewer.login}`;
@@ -329,11 +332,14 @@ async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
     dataToSend += '\n';
   });
 
-  if (includePersonWithNoTask) {
+  if (includePersonWithNoTask && personWithNoTask.length) {
+    dataToSend += `🏖`;
+
     personWithNoTask.forEach((person) => {
-      dataToSend += `🏖 ${person}\n`;
+      dataToSend += ` <b>${person}</b>`;
     });
   }
+
   dataToSend += '\n';
 
   return dataToSend;
