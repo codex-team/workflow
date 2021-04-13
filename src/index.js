@@ -112,19 +112,21 @@ function escapeChars(message) {
  * 💬 commented
  * 🔸 review is pending
  *
- *  @param {Array} reviews - PR review list with status.
+ * @param {Array} reviews - PR review list with status
+ * @param {Array} reviewRequests -  PR review requests list
  * @returns {string} - Symbolic string Contains parsed form of reviews
  */
-function createReviewStatus(reviews) {
-  if (reviews.totalCount === 0) {
-    return '🔸';
-  }
+function createReviewStatus(reviews, reviewRequests) {
   let reviewStatus = '';
 
   reviews.nodes.forEach(({ state }) => {
     reviewStatus += state === 'COMMENTED' ? '💬' : '';
     reviewStatus += state === 'APPROVED' ? '✅' : '';
     reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
+  });
+
+  reviewRequests.nodes.forEach(({ login }) => {
+    reviewStatus += '🔸';
   });
 
   return reviewStatus;
@@ -154,7 +156,7 @@ function pullRequestParser(content) {
   const parsedTask = `${createTaskBadge(content.url)}: <a href="${
     content.url
   }">${escapeChars(content.title)}</a> ${createReviewStatus(
-    content.reviews
+    content.reviews, content.reviewRequests
   )}  @${content.author.login}`;
 
   /**
