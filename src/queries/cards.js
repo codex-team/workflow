@@ -39,6 +39,12 @@ query($id: ID!) {
                   login
                 }
               }
+              reviews(last: 5) {
+                totalCount
+                nodes {
+                  state
+                }
+              }
             }
             ... on Issue {
               title

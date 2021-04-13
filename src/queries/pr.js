@@ -26,6 +26,12 @@ const PR_QUERY = `
             login
           }
         }
+        reviews(last: 5) {
+          totalCount
+          nodes {
+            state
+          }
+        }
       }
     }
   }
