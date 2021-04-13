@@ -121,7 +121,7 @@ function createReviewStatus(reviews) {
   }
   let reviewStatus = '';
 
-  reviews.forEach(({ state }) => {
+  reviews.nodes.forEach(({ state }) => {
     reviewStatus += state === 'COMMENTED' ? '💬' : '';
     reviewStatus += state === 'APPROVED' ? '✅' : '';
     reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
