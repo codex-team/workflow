@@ -153,8 +153,7 @@ function createTaskBadge(url) {
  * @returns {string} - parsed message.
  */
 function pullRequestParser(content) {
-  const parsedTask = `${createTaskBadge(content.url)}: <a href="${
-    content.url
+  const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
   }">${escapeChars(content.title)}</a> ${createReviewStatus(
     content.reviews, content.reviewRequests
   )}  @${content.author.login}`;
@@ -184,8 +183,7 @@ function pullRequestParser(content) {
  * @returns {string} - parsed message.
  */
 function issuesParser(content) {
-  let parsedTask = `${createTaskBadge(content.url)}: <a href="${
-    content.url
+  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
   }">${escapeChars(content.title)}</a>`;
 
   content.assignees.nodes.forEach((node) => {
@@ -265,7 +263,7 @@ async function parseQuery(members, response) {
 
         return parsable[0]
           ? await parseGithubLink(items.note, parsable)
-          : `${items.note} ${items.creator.loging}`;
+          : `${items.note} @${items.creator.login}`;
       } else if (items.state === 'CONTENT_ONLY') {
         if (items.content.__typename === 'PullRequest') {
           return pullRequestParser(items.content);
