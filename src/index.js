@@ -41,7 +41,9 @@ const PR_QUERY = require('./queries/pr');
  * @returns {Promise} - returns a promise to catch error.
  */
 async function notify(message) {
-  const messageData = `parse_mode=${PARSE_MODE}&disable_web_page_preview=True&message=${encodeURIComponent(message)}`;
+  const messageData = `parse_mode=${PARSE_MODE}&disable_web_page_preview=True&message=${encodeURIComponent(
+    message
+  )}`;
 
   return axios({
     method: 'POST',
@@ -103,6 +105,48 @@ function escapeChars(message) {
 }
 
 /**
+ * Parse reviews of PR into symbolic form described as:
+ *
+ * ✅ approved
+ * ❌ changes requested
+ * 💬 commented
+ * 🔸 review is pending
+ *
+ * @param {Array} latestOpinionatedReviews - list of latest opinionated reviews on PR
+ * @param {Array} latestReviews - list of lastest reviews on PR
+ * @param {Array} reviewRequests -  list of review requests on PR
+ * @returns {string} - Symbolic string Contains parsed form of reviews
+ */
+function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewRequests) {
+  let reviewStatus = '';
+
+  latestReviews = latestReviews.nodes;
+
+  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
+    const person = author.login;
+
+    reviewStatus += state === 'COMMENTED' ? '💬' : '';
+    reviewStatus += state === 'APPROVED' ? '✅' : '';
+    reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
+    latestReviews = latestReviews.filter((item) => {
+      return person !== item.author.login;
+    });
+  });
+
+  latestReviews.forEach(({ state }) => {
+    reviewStatus += state === 'COMMENTED' ? '💬' : '';
+    reviewStatus += state === 'APPROVED' ? '✅' : '';
+    reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
+  });
+
+  reviewRequests.nodes.forEach(({ login }) => {
+    reviewStatus += '🔸';
+  });
+
+  return reviewStatus;
+}
+
+/**
  * Parse github link via jonschlinkert/parse-github-url module
  *
  * https://github.com/jonschlinkert/parse-github-url
@@ -123,7 +167,10 @@ function createTaskBadge(url) {
  * @returns {string} - parsed message.
  */
 function pullRequestParser(content) {
-  const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title)}</a> @${content.author.login}`;
+  const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
+  }">${escapeChars(content.title)}</a> ${createReviewStatus(
+    content.latestOpinionatedReviews, content.latestReviews, content.reviewRequests
+  )}  @${content.author.login}`;
 
   /**
    * @todo discuss if it is necessary to duplicate links to pr
@@ -150,7 +197,8 @@ function pullRequestParser(content) {
  * @returns {string} - parsed message.
  */
 function issuesParser(content) {
-  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url}">${escapeChars(content.title)}</a>`;
+  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
+  }">${escapeChars(content.title)}</a>`;
 
   content.assignees.nodes.forEach((node) => {
     parsedTask += `@${node.login} `;
@@ -229,7 +277,7 @@ async function parseQuery(members, response) {
 
         return parsable[0]
           ? await parseGithubLink(items.note, parsable)
-          : `${items.note} ${items.creator.loging}`;
+          : `${items.note} @${items.creator.login}`;
       } else if (items.state === 'CONTENT_ONLY') {
         if (items.content.__typename === 'PullRequest') {
           return pullRequestParser(items.content);
@@ -250,7 +298,9 @@ async function parseQuery(members, response) {
       x.replace(new RegExp(`@${members[i].name}`, 'g'), '')
     );
   }
-  cardDataWithoutMembers = cardDataWithoutMembers.map((x) => x.replace(/^\s+|\s+$/g, ''));
+  cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
+    x.replace(/^\s+|\s+$/g, '')
+  );
 
   parsedCardData.forEach((items, index) => {
     for (let i = 0; i < members.length; i++) {
@@ -367,7 +417,9 @@ async function main() {
   const toDoJob = new CronJob(
     TO_DO_TIME,
     async () => {
-      notify(await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true))
+      notify(
+        await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
+      )
         .then(() => console.log('Tasks Job Completed.'))
         .catch(console.error);
     },
@@ -379,7 +431,9 @@ async function main() {
   const prJob = new CronJob(
     PR_TIME,
     async () => {
-      notify(await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR))
+      notify(
+        await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
+      )
         .then(() => console.log('PR Job Completed.'))
         .catch(console.error);
     },
