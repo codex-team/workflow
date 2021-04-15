@@ -35,7 +35,7 @@ const PR_QUERY = `
             state
           }
         }
-        latestReviews(last: 10) {
+        latestReviews(last: 100) {
           totalCount
           nodes {
             author {
