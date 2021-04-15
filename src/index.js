@@ -112,14 +112,28 @@ function escapeChars(message) {
  * 💬 commented
  * 🔸 review is pending
  *
- * @param {Array} reviews - PR review list with status
- * @param {Array} reviewRequests -  PR review requests list
+ * @param {Array} latestOpinionatedReviews - list of latest opinionated reviews on PR
+ * @param {Array} latestReviews - list of lastest reviews on PR
+ * @param {Array} reviewRequests -  list of review requests on PR
  * @returns {string} - Symbolic string Contains parsed form of reviews
  */
-function createReviewStatus(reviews, reviewRequests) {
+function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewRequests) {
   let reviewStatus = '';
 
-  reviews.nodes.forEach(({ state }) => {
+  latestReviews = latestReviews.nodes;
+
+  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
+    const person = author.login;
+
+    reviewStatus += state === 'COMMENTED' ? '💬' : '';
+    reviewStatus += state === 'APPROVED' ? '✅' : '';
+    reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
+    latestReviews = latestReviews.filter((item) => {
+      return person !== item.author.login;
+    });
+  });
+
+  latestReviews.forEach(({ state }) => {
     reviewStatus += state === 'COMMENTED' ? '💬' : '';
     reviewStatus += state === 'APPROVED' ? '✅' : '';
     reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
@@ -155,7 +169,7 @@ function createTaskBadge(url) {
 function pullRequestParser(content) {
   const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
   }">${escapeChars(content.title)}</a> ${createReviewStatus(
-    content.reviews, content.reviewRequests
+    content.latestOpinionatedReviews, content.latestReviews, content.reviewRequests
   )}  @${content.author.login}`;
 
   /**

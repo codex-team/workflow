@@ -39,9 +39,21 @@ query($id: ID!) {
                   login
                 }
               }
-              reviews(last: 5) {
+              latestOpinionatedReviews(last: 10) {
                 totalCount
                 nodes {
+                  author {
+                    login
+                  }
+                  state
+                }
+              }
+              latestReviews(last: 10) {
+                totalCount
+                nodes {
+                  author {
+                    login
+                  }
                   state
                 }
               }
