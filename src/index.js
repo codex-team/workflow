@@ -16,7 +16,7 @@ const PARSE_MODE = 'HTML';
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
-const TO_DO_TIME = process.env.PR_TIME || '0 9,20 * * 1-5';
+const TO_DO_TIME = process.env.TO_DO_TIME || '0 9,20 * * 1-5';
 /**
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
