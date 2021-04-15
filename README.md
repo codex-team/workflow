@@ -8,21 +8,32 @@ Clone the repository via command line:
 $ git clone https://github.com/codex-team/workflow
 ```
 
-## Install dependencies
+## Set Environment Variables
+
+Rename `.env.example` to `.env` and set require env for application.
+Then run with following command.
+
+## Run
+
+### Docker
+
+```bash
+$ docker-compose up
+```
+
+### Node.js and Yarn
 
 Get required dependencies by the following command.
+
 ```bash
 $ yarn install
 ```
 
-## Set Environment Variables & run 
+Run the app
 
-Rename `.env.example` to `.env` and set require env for application.
-Then run with following command.
 ```bash
 $ yarn start
 ```
-
 
 <!--
 
