@@ -2,7 +2,10 @@ version: "3.7"
 
 services:
   app:
-    build: .
-    env_file: .env
-    init: true
-    restart: always
+    image: node:15-alpine
+    restart: on-failure
+    command: sh -c "yarn && yarn start"
+    volumes:
+      - '.:/usr/src/app'
+    working_dir: /usr/src/app
+
