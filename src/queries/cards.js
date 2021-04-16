@@ -25,7 +25,7 @@ query($id: ID!) {
               author {
                 login
               }
-              reviewRequests(first: 10) {
+              reviewRequests(first: 100) {
                 nodes {
                   requestedReviewer {
                     ... on User {
@@ -39,7 +39,7 @@ query($id: ID!) {
                   login
                 }
               }
-              latestOpinionatedReviews(last: 10) {
+              latestOpinionatedReviews(last: 100) {
                 totalCount
                 nodes {
                   author {
