@@ -141,13 +141,13 @@ function getReviewStateEmoji(state = '') {
 function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewRequests) {
   const reviewReport = {};
 
-  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
+  latestReviews.nodes.forEach(({ state, author }) => {
     const person = author.login;
 
     reviewReport[person] = getReviewStateEmoji(state);
   });
 
-  latestReviews.nodes.forEach(({ state, author }) => {
+  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
     const person = author.login;
 
     reviewReport[person] = getReviewStateEmoji(state);
