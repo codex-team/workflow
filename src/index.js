@@ -144,7 +144,7 @@ function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewReque
   /**
    * 💬 LatestReviews for adding commented status
    */
-  latestReviews.nodes.forEach(({ state, author }) => {
+  latestReviews.nodes.reverse().forEach(({ state, author }) => {
     const person = author.login;
 
     reviewReport[person] = getReviewStateEmoji(state);
@@ -153,7 +153,7 @@ function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewReque
   /**
    * ✅❌ LatestOpinionatedReviews for the approved and changes requested
    */
-  latestOpinionatedReviews.nodes.reverse().forEach(({ state, author }) => {
+  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
     const person = author.login;
 
     reviewReport[person] = getReviewStateEmoji(state);
