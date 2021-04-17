@@ -150,10 +150,10 @@ function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewReque
     reviewReport[person] = getReviewStateEmoji(state);
   });
 
-  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
   /**
    * ✅❌ LatestOpinionatedReviews for the approved and changes requested
    */
+  latestOpinionatedReviews.nodes.reverse().forEach(({ state, author }) => {
     const person = author.login;
 
     reviewReport[person] = getReviewStateEmoji(state);
