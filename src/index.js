@@ -1,6 +1,10 @@
 require('dotenv').config();
+
+const Utils = require('./utils');
+
 const { Octokit } = require('@octokit/core');
 const parseGithubUrl = require('parse-github-url');
+
 const axios = require('axios').default;
 const CronJob = require('cron').CronJob;
 
@@ -11,6 +15,8 @@ const NOTIFIER_URL = process.env.NOTIFIER_URL;
 const MENTION = process.env.MENTION;
 const MEETING_MENTION = process.env.MEETING_MENTION;
 const PARSE_MODE = 'HTML';
+
+const TRIM_PR_NAME_LENGHT = 35;
 
 /**
  * The default cron expression described as:
@@ -105,12 +111,27 @@ function escapeChars(message) {
 }
 
 /**
- * Parse reviews of PR into symbolic form described as:
+ * Return emoji for review state
  *
  * ✅ approved
  * ❌ changes requested
  * 💬 commented
  * 🔸 review is pending
+ *
+ * @param {string} state - review state
+ * @returns {string}
+ */
+function getReviewStateEmoji(state = '') {
+  switch (state) {
+    case 'APPROVED': return '✅';
+    case 'CHANGES_REQUESTED': return '❌';
+    case 'COMMENTED': return '💬';
+    default: return '🔸';
+  }
+}
+
+/**
+ * Parse reviews of PR into symbolic form
  *
  * @param {Array} latestOpinionatedReviews - list of latest opinionated reviews on PR
  * @param {Array} latestReviews - list of lastest reviews on PR
@@ -118,29 +139,37 @@ function escapeChars(message) {
  * @returns {string} - Symbolic string Contains parsed form of reviews
  */
 function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewRequests) {
-  let reviewStatus = '';
+  const reviewReport = {};
 
-  latestReviews = latestReviews.nodes;
+  /**
+   * 💬 LatestReviews for adding commented status
+   */
+  latestReviews.nodes.reverse().forEach(({ state, author }) => {
+    const person = author.login;
 
+    reviewReport[person] = getReviewStateEmoji(state);
+  });
+
+  /**
+   * ✅❌ LatestOpinionatedReviews for the approved and changes requested
+   */
   latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
     const person = author.login;
 
-    reviewStatus += state === 'COMMENTED' ? '💬' : '';
-    reviewStatus += state === 'APPROVED' ? '✅' : '';
-    reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
-    latestReviews = latestReviews.filter((item) => {
-      return person !== item.author.login;
-    });
+    reviewReport[person] = getReviewStateEmoji(state);
   });
 
-  latestReviews.forEach(({ state }) => {
-    reviewStatus += state === 'COMMENTED' ? '💬' : '';
-    reviewStatus += state === 'APPROVED' ? '✅' : '';
-    reviewStatus += state === 'CHANGES_REQUESTED' ? '❌' : '';
+  /**
+   * 🔸 Requested review
+   */
+  reviewRequests.nodes.forEach(({ requestedReviewer: { login } }) => {
+    reviewReport[login] = getReviewStateEmoji();
   });
 
-  reviewRequests.nodes.forEach(({ login }) => {
-    reviewStatus += '🔸';
+  let reviewStatus = '';
+
+  Object.entries(reviewReport).forEach(([login, state]) => {
+    reviewStatus += `${state}`;
   });
 
   return reviewStatus;
@@ -167,10 +196,15 @@ function createTaskBadge(url) {
  * @returns {string} - parsed message.
  */
 function pullRequestParser(content) {
+  const taskTitle = Utils.trimString(escapeChars(content.title), TRIM_PR_NAME_LENGHT);
+  const reviewState = createReviewStatus(
+    content.latestOpinionatedReviews,
+    content.latestReviews,
+    content.reviewRequests
+  );
+
   const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
-  }">${escapeChars(content.title)}</a> ${createReviewStatus(
-    content.latestOpinionatedReviews, content.latestReviews, content.reviewRequests
-  )}  @${content.author.login}`;
+  }">${taskTitle}</a> ${reviewState} @${content.author.login}`;
 
   /**
    * @todo discuss if it is necessary to duplicate links to pr
@@ -197,8 +231,10 @@ function pullRequestParser(content) {
  * @returns {string} - parsed message.
  */
 function issuesParser(content) {
+  const taskTitle = Utils.trimString(escapeChars(content.title), TRIM_PR_NAME_LENGHT);
+
   let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
-  }">${escapeChars(content.title)}</a>`;
+  }">${escapeChars(taskTitle)}</a>`;
 
   content.assignees.nodes.forEach((node) => {
     parsedTask += `@${node.login} `;
