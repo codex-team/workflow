@@ -144,28 +144,32 @@ function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewReque
   /**
    * 💬 LatestReviews for adding commented status
    */
-  latestReviews.nodes.reverse().forEach(({ state, author }) => {
-    const person = author.login;
+  if (Utils.isPropertyExist(latestReviews, 'nodes')) {
+    latestReviews.nodes.reverse().forEach(({ state, author }) => {
+      const person = author.login;
 
-    reviewReport[person] = getReviewStateEmoji(state);
-  });
+      reviewReport[person] = getReviewStateEmoji(state);
+    });
+  }
 
   /**
    * ✅❌ LatestOpinionatedReviews for the approved and changes requested
    */
-  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
-    const person = author.login;
+  if (Utils.isPropertyExist(latestOpinionatedReviews, 'nodes')) {
+    latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
+      const person = author.login;
 
-    reviewReport[person] = getReviewStateEmoji(state);
-  });
-
+      reviewReport[person] = getReviewStateEmoji(state);
+    });
+  }
   /**
    * 🔸 Requested review
    */
-  reviewRequests.nodes.forEach(({ requestedReviewer: { login } }) => {
-    reviewReport[login] = getReviewStateEmoji();
-  });
-
+  if (Utils.isPropertyExist(reviewRequests, 'nodes')) {
+    reviewRequests.nodes.forEach(({ requestedReviewer: { login } }) => {
+      reviewReport[login] = getReviewStateEmoji();
+    });
+  }
   let reviewStatus = '';
 
   Object.entries(reviewReport).forEach(([login, state]) => {
@@ -236,9 +240,11 @@ function issuesParser(content) {
   let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
   }">${escapeChars(taskTitle)}</a>`;
 
-  content.assignees.nodes.forEach((node) => {
-    parsedTask += `@${node.login} `;
-  });
+  if (Utils.isPropertyExist(content, 'assignees', 'nodes')) {
+    content.assignees.nodes.forEach((node) => {
+      parsedTask += `@${node.login} `;
+    });
+  }
 
   return parsedTask;
 }
@@ -273,10 +279,12 @@ async function parseGithubLink(message, parsable) {
       number: parseInt(id),
     });
 
-    return replaceGithubLink(
-      message,
-      pullRequestParser(response.repository.pullRequest)
-    );
+    if (Utils.isPropertyExist(response, 'repository', 'pullRequest')) {
+      return replaceGithubLink(
+        message,
+        pullRequestParser(response.repository.pullRequest)
+      );
+    }
   }
   if (type === 'issues') {
     const response = await graphqlQuery(ISSUE_QUERY, {
@@ -285,7 +293,9 @@ async function parseGithubLink(message, parsable) {
       number: parseInt(id),
     });
 
-    return replaceGithubLink(message, issuesParser(response.repository.issue));
+    if (Utils.isPropertyExist(response, 'repository', 'issue')) {
+      return replaceGithubLink(message, issuesParser(response.repository.issue));
+    }
   }
 }
 
@@ -299,31 +309,37 @@ async function parseGithubLink(message, parsable) {
 async function parseQuery(members, response) {
   const parsedCardData = await Promise.all(
     await response.map(async (items) => {
-      if (items.state === 'NOTE_ONLY') {
-        for (let i = 0; i < members.length; i++) {
-          if (items.note.includes(`@${members[i].name}`)) {
+      if (Utils.isPropertyExist(items, 'state')) {
+        if (items.state === 'NOTE_ONLY') {
+          if (Utils.isPropertyExist(items, 'note') && Utils.isPropertyExist(items, 'creator')) {
+            for (let i = 0; i < members.length; i++) {
+              if (items.note.includes(`@${members[i].name}`)) {
+                const parsable = checkForParsableGithubLink(items.note);
+
+                return parsable[0]
+                  ? await parseGithubLink(items.note, parsable)
+                  : escapeChars(items.note);
+              }
+            }
             const parsable = checkForParsableGithubLink(items.note);
 
             return parsable[0]
               ? await parseGithubLink(items.note, parsable)
-              : escapeChars(items.note);
+              : `${items.note} @${items.creator.login}`;
+          }
+        } else if (items.state === 'CONTENT_ONLY') {
+          if (Utils.isPropertyExist(items, 'content', '__typename')) {
+            if (items.content.__typename === 'PullRequest') {
+              return pullRequestParser(items.content);
+            }
+            if (items.content.__typename === 'Issue') {
+              return issuesParser(items.content);
+            }
           }
         }
-        const parsable = checkForParsableGithubLink(items.note);
 
-        return parsable[0]
-          ? await parseGithubLink(items.note, parsable)
-          : `${items.note} @${items.creator.login}`;
-      } else if (items.state === 'CONTENT_ONLY') {
-        if (items.content.__typename === 'PullRequest') {
-          return pullRequestParser(items.content);
-        }
-        if (items.content.__typename === 'Issue') {
-          return issuesParser(items.content);
-        }
+        return '';
       }
-
-      return '';
     })
   );
 
@@ -393,10 +409,14 @@ function getMembersName(memberList) {
 async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
   let dataToSend = title + ' \n\n';
   const queryResponse = await graphqlQuery(CARDS_QUERY, { id: columnID });
-  const parsedData = await parseQuery(
-    getMembersName(MENTION),
-    queryResponse.node.cards.nodes
-  );
+  let parsedData = {};
+
+  if (Utils.isPropertyExist(queryResponse, 'node', 'cards', 'nodes')) {
+    parsedData = await parseQuery(
+      getMembersName(MENTION),
+      queryResponse.node.cards.nodes
+    );
+  }
   const personWithNoTask = [];
 
   parsedData.forEach((items) => {
