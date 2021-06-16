@@ -200,15 +200,23 @@ function createTaskBadge(url) {
  * @returns {string} - parsed message.
  */
 function pullRequestParser(content) {
-  const taskTitle = Utils.trimString(escapeChars(content.title), TRIM_PR_NAME_LENGHT);
+  const {
+    title,
+    latestOpinionatedReviews,
+    latestReviews,
+    reviewRequests,
+    author,
+    url,
+  } = content;
+
+  const taskTitle = Utils.trimString(escapeChars(title), TRIM_PR_NAME_LENGHT);
   const reviewState = createReviewStatus(
-    content.latestOpinionatedReviews,
-    content.latestReviews,
-    content.reviewRequests
+    latestOpinionatedReviews,
+    latestReviews,
+    reviewRequests
   );
 
-  const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
-  }">${taskTitle}</a> ${reviewState} @${content.author.login}`;
+  const parsedTask = `${createTaskBadge(url)}: <a href="${url}">${taskTitle}</a> ${reviewState} @${author.login}`;
 
   /**
    * @todo discuss if it is necessary to duplicate links to pr
@@ -235,14 +243,18 @@ function pullRequestParser(content) {
  * @returns {string} - parsed message.
  */
 function issuesParser(content) {
-  const taskTitle = Utils.trimString(escapeChars(content.title), TRIM_PR_NAME_LENGHT);
+  const {
+    title,
+    assignees,
+    url,
+  } = content;
+  const taskTitle = Utils.trimString(escapeChars(title), TRIM_PR_NAME_LENGHT);
 
-  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
-  }">${escapeChars(taskTitle)}</a>`;
+  let parsedTask = `${createTaskBadge(url)}: <a href="${url}">${escapeChars(taskTitle)}</a>`;
 
-  if (Utils.isPropertyExist(content, 'assignees', 'nodes')) {
-    content.assignees.nodes.forEach((node) => {
-      parsedTask += `@${node.login} `;
+  if (Utils.isPropertyExist(assignees, 'nodes')) {
+    assignees.nodes.forEach(({ login }) => {
+      parsedTask += `@${login} `;
     });
   }
 

@@ -23,7 +23,7 @@ class Utils {
    * @returns {boolean}
    */
   static isPropertyExist(obj, property, ...rest) {
-    if (obj === undefined) {
+    if (obj === undefined || obj === null) {
       return false;
     }
     if (rest.length == 0 && Object.prototype.hasOwnProperty.call(obj, property)) {
