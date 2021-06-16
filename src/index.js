@@ -89,7 +89,7 @@ function checkForParsableGithubLink(message) {
     return [true, owner, name, type, id];
   }
 
-  return [false];
+  return [ false ];
 }
 
 /**
@@ -334,41 +334,48 @@ async function parseGithubLink(message, parsable) {
 async function parseQuery(members, response) {
   const parsedCardData = await Promise.all(
     await response.map(async (items) => {
-      if (Utils.isPropertyExist(items, 'state')) {
-        if (items.state === 'NOTE_ONLY') {
-          if (Utils.isPropertyExist(items, 'note') && Utils.isPropertyExist(items, 'creator')) {
-            for (let i = 0; i < members.length; i++) {
-              if (items.note.includes(`@${members[i].name}`)) {
-                const parsable = checkForParsableGithubLink(items.note);
+      try {
+        if (Utils.isPropertyExist(items, 'state')) {
+          if (items.state === 'NOTE_ONLY') {
+            if (Utils.isPropertyExist(items, 'note') && Utils.isPropertyExist(items, 'creator')) {
+              for (let i = 0; i < members.length; i++) {
+                if (items.note.includes(`@${members[i].name}`)) {
+                  const parsable = checkForParsableGithubLink(items.note);
 
-                return parsable[0]
-                  ? await parseGithubLink(items.note, parsable)
-                  : escapeChars(items.note);
+                  return parsable[0]
+                    ? await parseGithubLink(items.note, parsable)
+                    : escapeChars(items.note);
+                }
+              }
+              const parsable = checkForParsableGithubLink(items.note);
+
+              return parsable[0]
+                ? await parseGithubLink(items.note, parsable)
+                : `${items.note} @${items.creator.login}`;
+            }
+          } else if (items.state === 'CONTENT_ONLY') {
+            if (Utils.isPropertyExist(items, 'content', '__typename')) {
+              if (items.content.__typename === 'PullRequest') {
+                return pullRequestParser(items.content);
+              }
+
+              if (items.content.__typename === 'Issue') {
+                return issuesParser(items.content);
               }
             }
-            const parsable = checkForParsableGithubLink(items.note);
+          }
 
-            return parsable[0]
-              ? await parseGithubLink(items.note, parsable)
-              : `${items.note} @${items.creator.login}`;
-          }
-        } else if (items.state === 'CONTENT_ONLY') {
-          if (Utils.isPropertyExist(items, 'content', '__typename')) {
-            if (items.content.__typename === 'PullRequest') {
-              return pullRequestParser(items.content);
-            }
-            if (items.content.__typename === 'Issue') {
-              return issuesParser(items.content);
-            }
-          }
+          return '';
         }
-
-        return '';
+      } catch (e) {
+        HawkCatcher.send(e, {
+          cardData: items,
+        });
       }
     })
-  );
+  ).catch(HawkCatcher.send);
 
-  let cardDataWithoutMembers = [...parsedCardData];
+  let cardDataWithoutMembers = [ ...parsedCardData ];
 
   for (let i = 0; i < members.length; i++) {
     cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
@@ -495,60 +502,56 @@ function parseMeetingMessage(mentionList) {
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
 async function main() {
-  try {
-    const toDoJob = new CronJob(
-      TO_DO_TIME,
-      async () => {
-        notify(
-          await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
-        )
-          .then(() => console.log('Tasks Job Completed.'))
-          .catch(HawkCatcher.send);
-      },
-      null,
-      true,
-      'Europe/Moscow'
-    );
+  const toDoJob = new CronJob(
+    TO_DO_TIME,
+    async () => {
+      notify(
+        await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
+      )
+        .then(() => console.log('Tasks Job Completed.'))
+        .catch(HawkCatcher.send);
+    },
+    null,
+    true,
+    'Europe/Moscow'
+  );
 
-    const prJob = new CronJob(
-      PR_TIME,
-      async () => {
-        notify(
-          await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
-        )
-          .then(() => console.log('PR Job Completed.'))
-          .catch(HawkCatcher.send);
-      },
-      null,
-      true,
-      'Europe/Moscow'
-    );
-    const meetingJob = new CronJob(
-      MEETING_TIME,
-      () => {
-        notify(parseMeetingMessage(MEETING_MENTION))
-          .then(() => console.log('Meeting Job Completed.'))
-          .catch(HawkCatcher.send);
-      },
-      null,
-      true,
-      'Europe/Moscow'
-    );
+  const prJob = new CronJob(
+    PR_TIME,
+    async () => {
+      notify(
+        await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
+      )
+        .then(() => console.log('PR Job Completed.'))
+        .catch(HawkCatcher.send);
+    },
+    null,
+    true,
+    'Europe/Moscow'
+  );
+  const meetingJob = new CronJob(
+    MEETING_TIME,
+    () => {
+      notify(parseMeetingMessage(MEETING_MENTION))
+        .then(() => console.log('Meeting Job Completed.'))
+        .catch(HawkCatcher.send);
+    },
+    null,
+    true,
+    'Europe/Moscow'
+  );
 
-    toDoJob.start();
-    console.log('To do list Notifier started');
-    console.log('Will notify at:' + TO_DO_TIME);
+  toDoJob.start();
+  console.log('To do list Notifier started');
+  console.log('Will notify at:' + TO_DO_TIME);
 
-    prJob.start();
-    console.log('PR review list Notifier started');
-    console.log('Will notify at:' + PR_TIME);
+  prJob.start();
+  console.log('PR review list Notifier started');
+  console.log('Will notify at:' + PR_TIME);
 
-    meetingJob.start();
-    console.log('Meeting notifier started');
-    console.log('Will notify at:' + MEETING_TIME);
-  } catch (e) {
-    HawkCatcher.send(e);
-  }
+  meetingJob.start();
+  console.log('Meeting notifier started');
+  console.log('Will notify at:' + MEETING_TIME);
 }
 
 main();
