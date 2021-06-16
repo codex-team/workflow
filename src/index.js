@@ -89,7 +89,7 @@ function checkForParsableGithubLink(message) {
     return [true, owner, name, type, id];
   }
 
-  return [ false ];
+  return [false];
 }
 
 /**
@@ -333,34 +333,34 @@ async function parseGithubLink(message, parsable) {
  */
 async function parseQuery(members, response) {
   const parsedCardData = await Promise.all(
-    await response.map(async (items) => {
+    await response.map(async (cardData) => {
       try {
-        if (Utils.isPropertyExist(items, 'state')) {
-          if (items.state === 'NOTE_ONLY') {
-            if (Utils.isPropertyExist(items, 'note') && Utils.isPropertyExist(items, 'creator')) {
+        if (Utils.isPropertyExist(cardData, 'state')) {
+          if (cardData.state === 'NOTE_ONLY') {
+            if (Utils.isPropertyExist(cardData, 'note') && Utils.isPropertyExist(cardData, 'creator')) {
               for (let i = 0; i < members.length; i++) {
-                if (items.note.includes(`@${members[i].name}`)) {
-                  const parsable = checkForParsableGithubLink(items.note);
+                if (cardData.note.includes(`@${members[i].name}`)) {
+                  const parsable = checkForParsableGithubLink(cardData.note);
 
                   return parsable[0]
-                    ? await parseGithubLink(items.note, parsable)
-                    : escapeChars(items.note);
+                    ? await parseGithubLink(cardData.note, parsable)
+                    : escapeChars(cardData.note);
                 }
               }
-              const parsable = checkForParsableGithubLink(items.note);
+              const parsable = checkForParsableGithubLink(cardData.note);
 
               return parsable[0]
-                ? await parseGithubLink(items.note, parsable)
-                : `${items.note} @${items.creator.login}`;
+                ? await parseGithubLink(cardData.note, parsable)
+                : `${cardData.note} @${cardData.creator.login}`;
             }
-          } else if (items.state === 'CONTENT_ONLY') {
-            if (Utils.isPropertyExist(items, 'content', '__typename')) {
-              if (items.content.__typename === 'PullRequest') {
-                return pullRequestParser(items.content);
+          } else if (cardData.state === 'CONTENT_ONLY') {
+            if (Utils.isPropertyExist(cardData, 'content', '__typename')) {
+              if (cardData.content.__typename === 'PullRequest') {
+                return pullRequestParser(cardData.content);
               }
 
-              if (items.content.__typename === 'Issue') {
-                return issuesParser(items.content);
+              if (cardData.content.__typename === 'Issue') {
+                return issuesParser(cardData.content);
               }
             }
           }
@@ -369,13 +369,13 @@ async function parseQuery(members, response) {
         }
       } catch (e) {
         HawkCatcher.send(e, {
-          cardData: items,
+          cardData: cardData,
         });
       }
     })
   ).catch(HawkCatcher.send);
 
-  let cardDataWithoutMembers = [ ...parsedCardData ];
+  let cardDataWithoutMembers = [...parsedCardData];
 
   for (let i = 0; i < members.length; i++) {
     cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
@@ -386,9 +386,9 @@ async function parseQuery(members, response) {
     x.replace(/^\s+|\s+$/g, '')
   );
 
-  parsedCardData.forEach((items, index) => {
+  parsedCardData.forEach((cardData, index) => {
     for (let i = 0; i < members.length; i++) {
-      if (items.includes(`@${members[i].name}`)) {
+      if (cardData.includes(`@${members[i].name}`)) {
         members[i].tasks.push(cardDataWithoutMembers[index]);
       }
     }
@@ -407,9 +407,9 @@ function getMembersName(memberList) {
   const members = [];
 
   if (memberList) {
-    memberList.split(' ').forEach((items) => {
+    memberList.split(' ').forEach((memberName) => {
       members.push({
-        name: items,
+        name: memberName,
         tasks: [],
       });
     });
@@ -418,9 +418,9 @@ function getMembersName(memberList) {
   }
 
   return octokit.graphql(MEMBERS_QUERY).then((query) => {
-    query.organization.membersWithRole.nodes.forEach((items) => {
+    query.organization.membersWithRole.nodes.forEach(({ login }) => {
       members.push({
-        name: items.login,
+        name: login,
         tasks: [],
       });
     });
@@ -451,19 +451,19 @@ async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
   }
   const personWithNoTask = [];
 
-  parsedData.forEach((items) => {
+  parsedData.forEach(({ tasks, name }) => {
     /** Skip person with no tasks */
-    if (!items.tasks.length) {
-      if (includePersonWithNoTask && items.name != 'dependabot') {
-        personWithNoTask.push(items.name);
+    if (!tasks.length) {
+      if (includePersonWithNoTask && name != 'dependabot') {
+        personWithNoTask.push(name);
       }
 
       return;
     }
 
-    dataToSend += `<b>${items.name}</b>\n`;
+    dataToSend += `<b>${name}</b>\n`;
 
-    items.tasks.forEach((data) => {
+    tasks.forEach((data) => {
       dataToSend += `• ${data}\n`;
     });
 
@@ -491,8 +491,8 @@ async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
 function parseMeetingMessage(mentionList) {
   let message = `☝️ Join the meeting in Discord!\n\n`;
 
-  mentionList.split(' ').forEach((items) => {
-    message += `@${items} `;
+  mentionList.split(' ').forEach((mentionName) => {
+    message += `@${mentionName} `;
   });
 
   return message;
