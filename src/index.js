@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const Utils = require('./utils');
+const HawkCatcher = require('@hawk.so/nodejs').default;
 
 const { Octokit } = require('@octokit/core');
 const parseGithubUrl = require('parse-github-url');
@@ -9,6 +10,8 @@ const axios = require('axios').default;
 const CronJob = require('cron').CronJob;
 
 const TOKEN = process.env.TOKEN;
+const HAWK_TOKEN = process.env.HAWK_TOKEN;
+
 const COLUMN_NODE_ID_TO_DO = process.env.COLUMN_NODE_ID_TO_DO;
 const COLUMN_NODE_ID_PR = process.env.COLUMN_NODE_ID_PR;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
@@ -39,6 +42,16 @@ const MEMBERS_QUERY = require('./queries/members');
 const CARDS_QUERY = require('./queries/cards');
 const ISSUE_QUERY = require('./queries/issue');
 const PR_QUERY = require('./queries/pr');
+
+/**
+ * Initialize HawkCatcher.
+ */
+HawkCatcher.init({
+  token: HAWK_TOKEN,
+  context: {
+    myOwnDebugInfo: '1234',
+  },
+});
 
 /**
  * Sends POST request to telegram bot
@@ -76,7 +89,7 @@ function checkForParsableGithubLink(message) {
     return [true, owner, name, type, id];
   }
 
-  return [ false ];
+  return [false];
 }
 
 /**
@@ -355,7 +368,7 @@ async function parseQuery(members, response) {
     })
   );
 
-  let cardDataWithoutMembers = [ ...parsedCardData ];
+  let cardDataWithoutMembers = [...parsedCardData];
 
   for (let i = 0; i < members.length; i++) {
     cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
@@ -482,56 +495,60 @@ function parseMeetingMessage(mentionList) {
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
 async function main() {
-  const toDoJob = new CronJob(
-    TO_DO_TIME,
-    async () => {
-      notify(
-        await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
-      )
-        .then(() => console.log('Tasks Job Completed.'))
-        .catch(console.error);
-    },
-    null,
-    true,
-    'Europe/Moscow'
-  );
+  try {
+    const toDoJob = new CronJob(
+      TO_DO_TIME,
+      async () => {
+        notify(
+          await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
+        )
+          .then(() => console.log('Tasks Job Completed.'))
+          .catch(HawkCatcher.send);
+      },
+      null,
+      true,
+      'Europe/Moscow'
+    );
 
-  const prJob = new CronJob(
-    PR_TIME,
-    async () => {
-      notify(
-        await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
-      )
-        .then(() => console.log('PR Job Completed.'))
-        .catch(console.error);
-    },
-    null,
-    true,
-    'Europe/Moscow'
-  );
-  const meetingJob = new CronJob(
-    MEETING_TIME,
-    () => {
-      notify(parseMeetingMessage(MEETING_MENTION))
-        .then(() => console.log('Meeting Job Completed.'))
-        .catch(console.error);
-    },
-    null,
-    true,
-    'Europe/Moscow'
-  );
+    const prJob = new CronJob(
+      PR_TIME,
+      async () => {
+        notify(
+          await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
+        )
+          .then(() => console.log('PR Job Completed.'))
+          .catch(HawkCatcher.send);
+      },
+      null,
+      true,
+      'Europe/Moscow'
+    );
+    const meetingJob = new CronJob(
+      MEETING_TIME,
+      () => {
+        notify(parseMeetingMessage(MEETING_MENTION))
+          .then(() => console.log('Meeting Job Completed.'))
+          .catch(HawkCatcher.send);
+      },
+      null,
+      true,
+      'Europe/Moscow'
+    );
 
-  toDoJob.start();
-  console.log('To do list Notifier started');
-  console.log('Will notify at:' + TO_DO_TIME);
+    toDoJob.start();
+    console.log('To do list Notifier started');
+    console.log('Will notify at:' + TO_DO_TIME);
 
-  prJob.start();
-  console.log('PR review list Notifier started');
-  console.log('Will notify at:' + PR_TIME);
+    prJob.start();
+    console.log('PR review list Notifier started');
+    console.log('Will notify at:' + PR_TIME);
 
-  meetingJob.start();
-  console.log('Meeting notifier started');
-  console.log('Will notify at:' + MEETING_TIME);
+    meetingJob.start();
+    console.log('Meeting notifier started');
+    console.log('Will notify at:' + MEETING_TIME);
+  } catch (e) {
+    HawkCatcher.send(e);
+  }
 }
 
 main();
