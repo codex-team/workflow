@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const Utils = require('./utils');
+const HawkCatcher = require('@hawk.so/nodejs').default;
 
 const { Octokit } = require('@octokit/core');
 const parseGithubUrl = require('parse-github-url');
@@ -9,6 +10,8 @@ const axios = require('axios').default;
 const CronJob = require('cron').CronJob;
 
 const TOKEN = process.env.TOKEN;
+const HAWK_TOKEN = process.env.HAWK_TOKEN;
+
 const COLUMN_NODE_ID_TO_DO = process.env.COLUMN_NODE_ID_TO_DO;
 const COLUMN_NODE_ID_PR = process.env.COLUMN_NODE_ID_PR;
 const NOTIFIER_URL = process.env.NOTIFIER_URL;
@@ -39,6 +42,16 @@ const MEMBERS_QUERY = require('./queries/members');
 const CARDS_QUERY = require('./queries/cards');
 const ISSUE_QUERY = require('./queries/issue');
 const PR_QUERY = require('./queries/pr');
+
+/**
+ * Initialize HawkCatcher.
+ */
+HawkCatcher.init({
+  token: HAWK_TOKEN,
+  context: {
+    myOwnDebugInfo: '1234',
+  },
+});
 
 /**
  * Sends POST request to telegram bot
@@ -144,28 +157,32 @@ function createReviewStatus(latestOpinionatedReviews, latestReviews, reviewReque
   /**
    * 💬 LatestReviews for adding commented status
    */
-  latestReviews.nodes.reverse().forEach(({ state, author }) => {
-    const person = author.login;
+  if (Utils.isPropertyExist(latestReviews, 'nodes')) {
+    latestReviews.nodes.reverse().forEach(({ state, author }) => {
+      const person = author.login;
 
-    reviewReport[person] = getReviewStateEmoji(state);
-  });
+      reviewReport[person] = getReviewStateEmoji(state);
+    });
+  }
 
   /**
    * ✅❌ LatestOpinionatedReviews for the approved and changes requested
    */
-  latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
-    const person = author.login;
+  if (Utils.isPropertyExist(latestOpinionatedReviews, 'nodes')) {
+    latestOpinionatedReviews.nodes.forEach(({ state, author }) => {
+      const person = author.login;
 
-    reviewReport[person] = getReviewStateEmoji(state);
-  });
-
+      reviewReport[person] = getReviewStateEmoji(state);
+    });
+  }
   /**
    * 🔸 Requested review
    */
-  reviewRequests.nodes.forEach(({ requestedReviewer: { login } }) => {
-    reviewReport[login] = getReviewStateEmoji();
-  });
-
+  if (Utils.isPropertyExist(reviewRequests, 'nodes')) {
+    reviewRequests.nodes.forEach(({ requestedReviewer: { login } }) => {
+      reviewReport[login] = getReviewStateEmoji();
+    });
+  }
   let reviewStatus = '';
 
   Object.entries(reviewReport).forEach(([login, state]) => {
@@ -196,15 +213,23 @@ function createTaskBadge(url) {
  * @returns {string} - parsed message.
  */
 function pullRequestParser(content) {
-  const taskTitle = Utils.trimString(escapeChars(content.title), TRIM_PR_NAME_LENGHT);
+  const {
+    title,
+    latestOpinionatedReviews,
+    latestReviews,
+    reviewRequests,
+    author,
+    url,
+  } = content;
+
+  const taskTitle = Utils.trimString(escapeChars(title), TRIM_PR_NAME_LENGHT);
   const reviewState = createReviewStatus(
-    content.latestOpinionatedReviews,
-    content.latestReviews,
-    content.reviewRequests
+    latestOpinionatedReviews,
+    latestReviews,
+    reviewRequests
   );
 
-  const parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
-  }">${taskTitle}</a> ${reviewState} @${content.author.login}`;
+  const parsedTask = `${createTaskBadge(url)}: <a href="${url}">${taskTitle}</a> ${reviewState} @${author.login}`;
 
   /**
    * @todo discuss if it is necessary to duplicate links to pr
@@ -231,14 +256,20 @@ function pullRequestParser(content) {
  * @returns {string} - parsed message.
  */
 function issuesParser(content) {
-  const taskTitle = Utils.trimString(escapeChars(content.title), TRIM_PR_NAME_LENGHT);
+  const {
+    title,
+    assignees,
+    url,
+  } = content;
+  const taskTitle = Utils.trimString(escapeChars(title), TRIM_PR_NAME_LENGHT);
 
-  let parsedTask = `${createTaskBadge(content.url)}: <a href="${content.url
-  }">${escapeChars(taskTitle)}</a>`;
+  let parsedTask = `${createTaskBadge(url)}: <a href="${url}">${escapeChars(taskTitle)}</a>`;
 
-  content.assignees.nodes.forEach((node) => {
-    parsedTask += `@${node.login} `;
-  });
+  if (Utils.isPropertyExist(assignees, 'nodes')) {
+    assignees.nodes.forEach(({ login }) => {
+      parsedTask += `@${login} `;
+    });
+  }
 
   return parsedTask;
 }
@@ -273,10 +304,12 @@ async function parseGithubLink(message, parsable) {
       number: parseInt(id),
     });
 
-    return replaceGithubLink(
-      message,
-      pullRequestParser(response.repository.pullRequest)
-    );
+    if (Utils.isPropertyExist(response, 'repository', 'pullRequest')) {
+      return replaceGithubLink(
+        message,
+        pullRequestParser(response.repository.pullRequest)
+      );
+    }
   }
   if (type === 'issues') {
     const response = await graphqlQuery(ISSUE_QUERY, {
@@ -285,7 +318,9 @@ async function parseGithubLink(message, parsable) {
       number: parseInt(id),
     });
 
-    return replaceGithubLink(message, issuesParser(response.repository.issue));
+    if (Utils.isPropertyExist(response, 'repository', 'issue')) {
+      return replaceGithubLink(message, issuesParser(response.repository.issue));
+    }
   }
 }
 
@@ -298,34 +333,47 @@ async function parseGithubLink(message, parsable) {
  */
 async function parseQuery(members, response) {
   const parsedCardData = await Promise.all(
-    await response.map(async (items) => {
-      if (items.state === 'NOTE_ONLY') {
-        for (let i = 0; i < members.length; i++) {
-          if (items.note.includes(`@${members[i].name}`)) {
-            const parsable = checkForParsableGithubLink(items.note);
+    await response.map(async (cardData) => {
+      try {
+        if (Utils.isPropertyExist(cardData, 'state')) {
+          if (cardData.state === 'NOTE_ONLY') {
+            if (Utils.isPropertyExist(cardData, 'note') && Utils.isPropertyExist(cardData, 'creator')) {
+              for (let i = 0; i < members.length; i++) {
+                if (cardData.note.includes(`@${members[i].name}`)) {
+                  const parsable = checkForParsableGithubLink(cardData.note);
 
-            return parsable[0]
-              ? await parseGithubLink(items.note, parsable)
-              : escapeChars(items.note);
+                  return parsable[0]
+                    ? await parseGithubLink(cardData.note, parsable)
+                    : escapeChars(cardData.note);
+                }
+              }
+              const parsable = checkForParsableGithubLink(cardData.note);
+
+              return parsable[0]
+                ? await parseGithubLink(cardData.note, parsable)
+                : `${cardData.note} @${cardData.creator.login}`;
+            }
+          } else if (cardData.state === 'CONTENT_ONLY') {
+            if (Utils.isPropertyExist(cardData, 'content', '__typename')) {
+              if (cardData.content.__typename === 'PullRequest') {
+                return pullRequestParser(cardData.content);
+              }
+
+              if (cardData.content.__typename === 'Issue') {
+                return issuesParser(cardData.content);
+              }
+            }
           }
-        }
-        const parsable = checkForParsableGithubLink(items.note);
 
-        return parsable[0]
-          ? await parseGithubLink(items.note, parsable)
-          : `${items.note} @${items.creator.login}`;
-      } else if (items.state === 'CONTENT_ONLY') {
-        if (items.content.__typename === 'PullRequest') {
-          return pullRequestParser(items.content);
+          return '';
         }
-        if (items.content.__typename === 'Issue') {
-          return issuesParser(items.content);
-        }
+      } catch (e) {
+        HawkCatcher.send(e, {
+          cardData: cardData,
+        });
       }
-
-      return '';
     })
-  );
+  ).catch(HawkCatcher.send);
 
   let cardDataWithoutMembers = [ ...parsedCardData ];
 
@@ -338,9 +386,9 @@ async function parseQuery(members, response) {
     x.replace(/^\s+|\s+$/g, '')
   );
 
-  parsedCardData.forEach((items, index) => {
+  parsedCardData.forEach((cardData, index) => {
     for (let i = 0; i < members.length; i++) {
-      if (items.includes(`@${members[i].name}`)) {
+      if (cardData.includes(`@${members[i].name}`)) {
         members[i].tasks.push(cardDataWithoutMembers[index]);
       }
     }
@@ -359,9 +407,9 @@ function getMembersName(memberList) {
   const members = [];
 
   if (memberList) {
-    memberList.split(' ').forEach((items) => {
+    memberList.split(' ').forEach((memberName) => {
       members.push({
-        name: items,
+        name: memberName,
         tasks: [],
       });
     });
@@ -370,9 +418,9 @@ function getMembersName(memberList) {
   }
 
   return octokit.graphql(MEMBERS_QUERY).then((query) => {
-    query.organization.membersWithRole.nodes.forEach((items) => {
+    query.organization.membersWithRole.nodes.forEach(({ login }) => {
       members.push({
-        name: items.login,
+        name: login,
         tasks: [],
       });
     });
@@ -393,25 +441,29 @@ function getMembersName(memberList) {
 async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
   let dataToSend = title + ' \n\n';
   const queryResponse = await graphqlQuery(CARDS_QUERY, { id: columnID });
-  const parsedData = await parseQuery(
-    getMembersName(MENTION),
-    queryResponse.node.cards.nodes
-  );
+  let parsedData = {};
+
+  if (Utils.isPropertyExist(queryResponse, 'node', 'cards', 'nodes')) {
+    parsedData = await parseQuery(
+      getMembersName(MENTION),
+      queryResponse.node.cards.nodes
+    );
+  }
   const personWithNoTask = [];
 
-  parsedData.forEach((items) => {
+  parsedData.forEach(({ tasks, name }) => {
     /** Skip person with no tasks */
-    if (!items.tasks.length) {
-      if (includePersonWithNoTask && items.name != 'dependabot') {
-        personWithNoTask.push(items.name);
+    if (!tasks.length) {
+      if (includePersonWithNoTask && name != 'dependabot') {
+        personWithNoTask.push(name);
       }
 
       return;
     }
 
-    dataToSend += `<b>${items.name}</b>\n`;
+    dataToSend += `<b>${name}</b>\n`;
 
-    items.tasks.forEach((data) => {
+    tasks.forEach((data) => {
       dataToSend += `• ${data}\n`;
     });
 
@@ -439,8 +491,8 @@ async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
 function parseMeetingMessage(mentionList) {
   let message = `☝️ Join the meeting in Discord!\n\n`;
 
-  mentionList.split(' ').forEach((items) => {
-    message += `@${items} `;
+  mentionList.split(' ').forEach((mentionName) => {
+    message += `@${mentionName} `;
   });
 
   return message;
@@ -457,7 +509,7 @@ async function main() {
         await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
       )
         .then(() => console.log('Tasks Job Completed.'))
-        .catch(console.error);
+        .catch(HawkCatcher.send);
     },
     null,
     true,
@@ -471,7 +523,7 @@ async function main() {
         await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
       )
         .then(() => console.log('PR Job Completed.'))
-        .catch(console.error);
+        .catch(HawkCatcher.send);
     },
     null,
     true,
@@ -482,7 +534,7 @@ async function main() {
     () => {
       notify(parseMeetingMessage(MEETING_MENTION))
         .then(() => console.log('Meeting Job Completed.'))
-        .catch(console.error);
+        .catch(HawkCatcher.send);
     },
     null,
     true,

@@ -39,6 +39,14 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
+"@hawk.so/nodejs@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@hawk.so/nodejs/-/nodejs-2.2.0.tgz#d72f028b2b39eaf6ac1a8b5f711ab9faa7649cb3"
+  integrity sha512-6QdzhfNfzEEmkHzW3ApfGAbl4Ri8P68ezHqHgzToGVN/42SeC/wWX21hR69BrXSfMloK/33AH+Be/luNY388Ug==
+  dependencies:
+    axios "^0.19.2"
+    stack-trace "^0.0.10"
+
 "@nodelib/fs.scandir@2.1.4":
   version "2.1.4"
   resolved "https://registry.yarnpkg.com/@nodelib/fs.scandir/-/fs.scandir-2.1.4.tgz#d4b3549a5db5de2683e0c1071ab4f140904bbf69"
@@ -1957,6 +1965,11 @@ sprintf-js@~1.0.2:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/sprintf-js/-/sprintf-js-1.0.3.tgz#04e6926f662895354f3dd015203633b857297e2c"
   integrity sha1-BOaSb2YolTVPPdAVIDYzuFcpfiw=
+
+stack-trace@^0.0.10:
+  version "0.0.10"
+  resolved "https://registry.yarnpkg.com/stack-trace/-/stack-trace-0.0.10.tgz#547c70b347e8d32b4e108ea1a2a159e5fdde19c0"
+  integrity sha1-VHxws0fo0ytOEI6hoqFZ5f3eGcA=
 
 string-width@^3.0.0:
   version "3.1.0"
