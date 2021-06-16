@@ -89,7 +89,7 @@ function checkForParsableGithubLink(message) {
     return [true, owner, name, type, id];
   }
 
-  return [false];
+  return [ false ];
 }
 
 /**
@@ -375,7 +375,7 @@ async function parseQuery(members, response) {
     })
   ).catch(HawkCatcher.send);
 
-  let cardDataWithoutMembers = [...parsedCardData];
+  let cardDataWithoutMembers = [ ...parsedCardData ];
 
   for (let i = 0; i < members.length; i++) {
     cardDataWithoutMembers = cardDataWithoutMembers.map((x) =>
