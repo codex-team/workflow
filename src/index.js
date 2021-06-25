@@ -489,7 +489,7 @@ async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
  * @returns {string} -parsed messages
  */
 function parseMeetingMessage(mentionList) {
-  let message = `☝️ Join the meeting in Discord!\n\n`;
+  let message = `☝️ Join the meeting in Telegram!\n\n`;
 
   mentionList.split(' ').forEach((mentionName) => {
     message += `@${mentionName} `;
