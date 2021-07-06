@@ -19,8 +19,8 @@ const COLUMN_NODE_ID_TO_DO = config.column_node_id_to_do;
 const COLUMN_NODE_ID_PR = config.column_node_id_pr;
 const NOTIFIER_URL = config.notifier_url;
 const MENTION_MAP = {};
-const MENTION = parse_mention(config.mention);
-const MEETING_MENTION = config.meeting_mention.join(" ");
+const MENTION = parseMention(config.mention);
+const MEETING_MENTION = config.meeting_mention.join(' ');
 const PARSE_MODE = 'HTML';
 
 const TRIM_PR_NAME_LENGHT = 35;
@@ -46,26 +46,32 @@ const MEMBERS_QUERY = require('./queries/members');
 const CARDS_QUERY = require('./queries/cards');
 const ISSUE_QUERY = require('./queries/issue');
 const PR_QUERY = require('./queries/pr');
-const { Console } = require('console');
+// const { Console } = require('console');
 
 /**
  * Parse mention list to string
  * and build mention map that links github to telegram usernames.
+ *
+ * @param {object} mentions - list of mentioned people in JSON
+ * @returns {string} mentionStr - space-separated list of mentioned people in string
  */
-function parse_mention(mentions) {
-  var mention = [];
+function parseMention(mentions) {
+  const mention = [];
+
   mentions.forEach((person) => {
-    if (typeof person != "string"){
+    if (typeof person != 'string') {
       mention.push(person.gh);
       MENTION_MAP[person.gh] = person.tg;
 
       return;
     }
-    mention.push(person)
+    mention.push(person);
     MENTION_MAP[person] = person;
   });
 
-  return mention.join(" ")
+  const mentionStr = mention.join(' ');
+
+  return mentionStr;
 }
 
 /**
