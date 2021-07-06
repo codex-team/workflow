@@ -5,7 +5,7 @@
 Clone the repository via command line:
 
 ```bash
-$ git clone https://github.com/nvc8996/workflow
+$ git clone https://github.com/codex-team/workflow
 ```
 
 ## Set Environment Variables
