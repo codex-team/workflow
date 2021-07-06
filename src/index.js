@@ -1,4 +1,7 @@
-require('dotenv').config();
+const yaml = require('js-yaml');
+const fs = require('fs');
+
+const config = yaml.load(fs.readFileSync('config.yml', 'utf-8'));
 
 const Utils = require('./utils');
 const HawkCatcher = require('@hawk.so/nodejs').default;
@@ -9,14 +12,15 @@ const parseGithubUrl = require('parse-github-url');
 const axios = require('axios').default;
 const CronJob = require('cron').CronJob;
 
-const TOKEN = process.env.TOKEN;
-const HAWK_TOKEN = process.env.HAWK_TOKEN;
+const TOKEN = config.token;
+const HAWK_TOKEN = config.hawk_token;
 
-const COLUMN_NODE_ID_TO_DO = process.env.COLUMN_NODE_ID_TO_DO;
-const COLUMN_NODE_ID_PR = process.env.COLUMN_NODE_ID_PR;
-const NOTIFIER_URL = process.env.NOTIFIER_URL;
-const MENTION = process.env.MENTION;
-const MEETING_MENTION = process.env.MEETING_MENTION;
+const COLUMN_NODE_ID_TO_DO = config.column_node_id_to_do;
+const COLUMN_NODE_ID_PR = config.column_node_id_pr;
+const NOTIFIER_URL = config.notifier_url;
+const MENTION_MAP = {};
+const MENTION = parse_mention(config.mention);
+const MEETING_MENTION = config.meeting_mention.join(" ");
 const PARSE_MODE = 'HTML';
 
 const TRIM_PR_NAME_LENGHT = 35;
@@ -25,23 +29,44 @@ const TRIM_PR_NAME_LENGHT = 35;
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
-const TO_DO_TIME = process.env.TO_DO_TIME || '0 9,20 * * 1-5';
+const TO_DO_TIME = config.to_do_time || '0 9,20 * * 1-5';
 /**
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
-const PR_TIME = process.env.PR_TIME || '0 9,20 * * 1-5';
+const PR_TIME = config.pr_time || '0 9,20 * * 1-5';
 /**
  * The default cron expression described as:
  * At 21:00 on every day-of-week from Monday through Friday.
  */
-const MEETING_TIME = process.env.MEETING_TIME || '0 21 * * 1-5';
+const MEETING_TIME = config.meeting_time || '0 21 * * 1-5';
 const octokit = new Octokit({ auth: TOKEN });
 
 const MEMBERS_QUERY = require('./queries/members');
 const CARDS_QUERY = require('./queries/cards');
 const ISSUE_QUERY = require('./queries/issue');
 const PR_QUERY = require('./queries/pr');
+const { Console } = require('console');
+
+/**
+ * Parse mention list to string
+ * and build mention map that links github to telegram usernames.
+ */
+function parse_mention(mentions) {
+  var mention = [];
+  mentions.forEach((person) => {
+    if (typeof person != "string"){
+      mention.push(person.gh);
+      MENTION_MAP[person.gh] = person.tg;
+
+      return;
+    }
+    mention.push(person)
+    MENTION_MAP[person] = person;
+  });
+
+  return mention.join(" ")
+}
 
 /**
  * Initialize HawkCatcher.
@@ -398,7 +423,7 @@ async function parseQuery(members, response) {
 }
 
 /**
- * Provides list of members with there task
+ * Provides list of members with their task
  *
  * @param {string} memberList - contains memberList with space as separator
  * @returns {Array} - returns Array of object contains user name and it's task
@@ -461,7 +486,7 @@ async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
       return;
     }
 
-    dataToSend += `<b>${name}</b>\n`;
+    dataToSend += `<b>${MENTION_MAP[name]}</b>\n`;
 
     tasks.forEach((data) => {
       dataToSend += `• ${data}\n`;
@@ -474,7 +499,7 @@ async function notifyMessage(title, columnID, includePersonWithNoTask = false) {
     dataToSend += `🏖`;
 
     personWithNoTask.forEach((person) => {
-      dataToSend += ` <b>${person}</b>`;
+      dataToSend += ` <b>${MENTION_MAP[person]}</b>`;
     });
   }
 

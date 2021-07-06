@@ -5,12 +5,12 @@
 Clone the repository via command line:
 
 ```bash
-$ git clone https://github.com/codex-team/workflow
+$ git clone https://github.com/nvc8996/workflow
 ```
 
 ## Set Environment Variables
 
-Rename `.env.example` to `.env` and set require env for application.
+Rename `config.yml.example` to `config.yml` and set required parameters for application.
 Then run with following command.
 
 ## Run
