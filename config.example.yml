@@ -1,10 +1,10 @@
 # Github Personal Access Token (https://github.com/settings/tokens) with rights:
 # - "repo - public_repo"
 # - "admin:org - read:org"
-TOKEN=
+token: 
 
 # HAWK Catcher TOKEN
-HAWK_TOKEN=
+hawk_token: 
 
 # Columns Nodes id
 # To get these values use any app for sending requests (Insomnia for example) and send the following request
@@ -34,21 +34,29 @@ HAWK_TOKEN=
 #         }
 #       }
 #     }
-COLUMN_NODE_ID_TO_DO=
-COLUMN_NODE_ID_PR=
+column_node_id_to_do: 
+column_node_id_pr: 
 
 # @codex_bot notify URL
 # Open https://t.me/codex_bot
 # And run /notify command
-NOTIFIER_URL=
+notifier_url: 
+
+# Define jobs
+# Example: 0 9,18 * * 1-5
+# At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
+to_do_time: 0 9,18 * * 1-5
+pr_time: 0 9,18 * * 1-5
+meeting_time: 0 9,18 * * 1-5
+
+# List of people (Telegram only) to tag in the «Meeting Message» message
+meeting_mention:
+  - nvc_8996
+  # - n0str
 
 # List of people to tag in the «Pull Requests» message
-MENTION = "ilyamore88 GeekaN2 robonetphy neSpecc nikmel2803 n0str talyguryn gohabereg khaydarov f0m41h4u7 dependabot"
-
-# List of people to tag in the «Meeting Message» message
-MEETING_MENTION = "specc guryn khaydarovm nikmel2803 gohabereg ilyamore88 GeekaN augustovich n0str f0m41h4u7 robonetphy"
-
-# Define job
-TO_DO_TIME="0 9,20 * * 1-5"
-PR_TIME="0 9,20 * * 1-5"
-MEETING_TIME = "0 21 * * 1-5"
+# Separated Github and Telegram usernames if they differ.
+mention:
+  # - n0str
+  - tg: nvc_8996
+    gh: nvc8996
