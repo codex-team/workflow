@@ -45,11 +45,11 @@ notifier_url:
 # Define jobs
 # Example: 0 9,18 * * 1-5
 # At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
-to_do_time: 0 9,18 * * 1-5
-pr_time: 0 9,18 * * 1-5
-meeting_time: 0 9,18 * * 1-5
+to_do_time: 50 7,20 * * 1-5
+pr_time: 50 7,20 * * 1-5
+meeting_time: 0 8,21 * * 1-5
 
-# List of people (Telegram only) to tag in the «Meeting Message» message
+# List of people (Telegram only) to tag in the 'Meeting Message' message
 meeting_mention:
   - specc
   - guryn
@@ -63,10 +63,10 @@ meeting_mention:
   - f0m41h4u7
   - robonetphy
   - nvc_8996
-# List of people to tag in the «Pull Requests» message
+  
+# List of people to tag in the 'Pull Requests' message
 # Separated Github and Telegram usernames if they differ.
 mention:
-  # - n0str
   - tg: specc
     gh: neSpecc
   - tg: guryn
