@@ -1,10 +1,10 @@
 # Github Personal Access Token (https://github.com/settings/tokens) with rights:
 # - "repo - public_repo"
 # - "admin:org - read:org"
-token: 
+token:
 
 # HAWK Catcher TOKEN
-hawk_token: 
+hawk_token:
 
 # Columns Nodes id
 # To get these values use any app for sending requests (Insomnia for example) and send the following request
@@ -17,7 +17,7 @@ hawk_token:
 #     Authorization: bearer YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
 #     Content-Type: application/json
 # Body Type: GraphQL
-# Body: 
+# Body:
 #     query {
 #       organization(login: "codex-team") {
 #         project(number: 11) {
@@ -28,19 +28,19 @@ hawk_token:
 #               node {
 #                 id,
 #                 name
-#               } 
+#               }
 #             }
 #           }
 #         }
 #       }
 #     }
-column_node_id_to_do: 
-column_node_id_pr: 
+column_node_id_to_do:
+column_node_id_pr:
 
 # @codex_bot notify URL
 # Open https://t.me/codex_bot
 # And run /notify command
-notifier_url: 
+notifier_url:
 
 # Define jobs
 # Example: 0 9,18 * * 1-5
@@ -51,12 +51,45 @@ meeting_time: 0 9,18 * * 1-5
 
 # List of people (Telegram only) to tag in the «Meeting Message» message
 meeting_mention:
+  - specc
+  - guryn
+  - khaydarovm
+  - nikmel2803
+  - gohabereg
+  - ilyamore88
+  - GeekaN
+  - augustovich
+  - n0str
+  - f0m41h4u7
+  - robonetphy
   - nvc_8996
-  # - n0str
-
 # List of people to tag in the «Pull Requests» message
 # Separated Github and Telegram usernames if they differ.
 mention:
   # - n0str
+  - tg: specc
+    gh: neSpecc
+  - tg: guryn
+    gh: talyguryn
+  - tg: khaydarovm
+    gh: khaydarov
+  - tg: nikmel2803
+    gh: nikmel2803
+  - tg: gohabereg
+    gh: gohabereg
+  - tg: ilyamore88
+    gh: ilyamore88
+  - tg: GeekaN
+    gh: GeekaN2
+  - tg: augustovich
+    gh: kabachook
+  - tg: n0str
+    gh: n0str
+  - tg: f0m41h4u7
+    gh: f0m41h4u7
+  - tg: robonetphy
+    gh: robonetphy
   - tg: nvc_8996
     gh: nvc8996
+  - tg: dependabot
+    gh: dependabot
