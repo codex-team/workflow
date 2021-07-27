@@ -10,7 +10,7 @@ $ git clone https://github.com/codex-team/workflow
 
 ## Set Environment Variables
 
-Rename `.env.example` to `.env` and set require env for application.
+Rename `config.yml.example` to `config.yml` and set required parameters for application.
 Then run with following command.
 
 ## Run
