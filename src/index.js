@@ -30,17 +30,17 @@ const TRIM_PR_NAME_LENGHT = 35;
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
-const TO_DO_TIME = config.to_do_time || '0 9,20 * * 1-5';
+const TO_DO_TIME = config.to_do_time;
 /**
  * The default cron expression described as:
  * At minute 0 past hour 9 and 18 on every day-of-week from Monday through Friday.
  */
-const PR_TIME = config.pr_time || '0 9,20 * * 1-5';
+const PR_TIME = config.pr_time;
 /**
  * The default cron expression described as:
  * At 21:00 on every day-of-week from Monday through Friday.
  */
-const MEETING_TIME = config.meeting_time || '0 21 * * 1-5';
+const MEETING_TIME = config.meeting_time;
 const octokit = new Octokit({ auth: TOKEN });
 
 const MEMBERS_QUERY = require('./queries/members');
@@ -389,57 +389,79 @@ function parseMeetingMessage(mentionList) {
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
 async function main() {
-  const meetingJob = new CronJob(
-    MEETING_TIME,
-    () => {
-      notify(parseMeetingMessage(MEETING_MENTION))
-        .then(() => console.log('Meeting Job Completed.'))
-        .catch(HawkCatcher.send);
-    },
-    null,
-    true,
-    'Europe/Moscow'
-  );
+  if (MEETING_TIME) {
+    const meetingJob = new CronJob(
+      MEETING_TIME,
+      () => {
+        notify(parseMeetingMessage(MEETING_MENTION))
+          .then(() => console.log('Meeting Job Completed.'))
+          .catch(HawkCatcher.send);
+      },
+      null,
+      true,
+      'Europe/Moscow'
+    );
 
-  const toDoJob = new CronJob(
-    TO_DO_TIME,
-    async () => {
-      notify(
-        await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
-      )
-        .then(() => console.log('Tasks Job Completed.'))
-        .catch(HawkCatcher.send);
-    },
-    null,
-    true,
-    'Europe/Moscow'
-  );
+    meetingJob.start();
+    console.log('Meeting notifier started');
+    console.log('Will notify at:' + MEETING_TIME);
 
-  const prJob = new CronJob(
-    PR_TIME,
-    async () => {
-      notify(
-        await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
-      )
-        .then(() => console.log('PR Job Completed.'))
-        .catch(HawkCatcher.send);
-    },
-    null,
-    true,
-    'Europe/Moscow'
-  );
+    // notify(parseMeetingMessage(MEETING_MENTION))
+    //   .then(() => console.log('Meeting Job Completed.'))
+    //   .catch(HawkCatcher.send);
+  }
 
-  meetingJob.start();
-  console.log('Meeting notifier started');
-  console.log('Will notify at:' + MEETING_TIME);
+  if (TO_DO_TIME) {
+    const toDoJob = new CronJob(
+      TO_DO_TIME,
+      async () => {
+        notify(
+          await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
+        )
+          .then(() => console.log('Tasks Job Completed.'))
+          .catch(HawkCatcher.send);
+      },
+      null,
+      true,
+      'Europe/Moscow'
+    );
 
-  toDoJob.start();
-  console.log('To do list Notifier started');
-  console.log('Will notify at:' + TO_DO_TIME);
+    toDoJob.start();
+    console.log('To do list Notifier started');
+    console.log('Will notify at:' + TO_DO_TIME);
 
-  prJob.start();
-  console.log('PR review list Notifier started');
-  console.log('Will notify at:' + PR_TIME);
+    // notify(
+    //   await notifyMessage("📌 Sprint's backlog", COLUMN_NODE_ID_TO_DO, true)
+    // )
+    //   .then(() => console.log('Tasks Job Completed.'))
+    //   .catch(HawkCatcher.send);
+  }
+
+  if (PR_TIME) {
+    const prJob = new CronJob(
+      PR_TIME,
+      async () => {
+        notify(
+          await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
+        )
+          .then(() => console.log('PR Job Completed.'))
+          .catch(HawkCatcher.send);
+      },
+      null,
+      true,
+      'Europe/Moscow'
+    );
+
+    prJob.start();
+    console.log('PR review list Notifier started');
+    console.log('Will notify at:' + PR_TIME);
+
+    // notify(
+    //   await notifyMessage('👀 Pull requests for review', COLUMN_NODE_ID_PR)
+    // )
+    //   .then(() => console.log('PR Job Completed.'))
+    //   .catch(HawkCatcher.send);
+  }
 }
 
 main();

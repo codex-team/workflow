@@ -1,10 +1,10 @@
 # Github Personal Access Token (https://github.com/settings/tokens) with rights:
 # - "repo - public_repo"
 # - "admin:org - read:org"
-token: 
+token:
 
 # HAWK Catcher TOKEN
-hawk_token: 
+hawk_token:
 
 # Columns Nodes id
 # To get these values use any app for sending requests (Insomnia for example) and send the following request
@@ -16,8 +16,9 @@ hawk_token:
 # Headers:
 #     Authorization: bearer YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
 #     Content-Type: application/json
+#     User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15
 # Body Type: GraphQL
-# Body: 
+# Body:
 #     query {
 #       organization(login: "codex-team") {
 #         project(number: 11) {
@@ -28,19 +29,19 @@ hawk_token:
 #               node {
 #                 id,
 #                 name
-#               } 
+#               }
 #             }
 #           }
 #         }
 #       }
 #     }
-column_node_id_to_do: 
-column_node_id_pr: 
+column_node_id_to_do:
+column_node_id_pr:
 
 # @codex_bot notify URL
 # Open https://t.me/codex_bot
 # And run /notify command
-notifier_url: 
+notifier_url:
 
 # Define jobs
 # Example: 0 9,18 * * 1-5
