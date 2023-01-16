@@ -48,15 +48,14 @@ const CARDS_QUERY = require('./queries/cards');
 const ISSUE_QUERY = require('./queries/issue');
 const PR_QUERY = require('./queries/pr');
 
-/**
- * Initialize HawkCatcher.
- */
-HawkCatcher.init({
-  token: HAWK_TOKEN,
-  context: {
-    myOwnDebugInfo: '1234',
-  },
-});
+if (HAWK_TOKEN) {
+  /**
+   * Initialize HawkCatcher.
+   */
+  HawkCatcher.init({
+    token: HAWK_TOKEN,
+  });
+}
 
 /**
  * Request the GraphQL API of Github with passed query and param.
