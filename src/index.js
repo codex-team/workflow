@@ -393,7 +393,7 @@ async function main() {
     const meetingNoticeJob = new CronJob(
       MEETING_NOTICE_TIME,
       () => {
-        notify(`Meeting will start in 15 minutes🕒`)
+        notify(`Meeting will start in 15 minutes 🕒`)
           .then(() => console.log('MeetingNotice Job Completed'))
           .catch(HawkCatcher.send);
       },
