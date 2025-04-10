@@ -49,6 +49,7 @@ notifier_url:
 to_do_time: 0 9,18 * * 1-5
 pr_time: 0 9,18 * * 1-5
 meeting_time: 0 9,18 * * 1-5
+meeting_notice_time: 45 8,17 * * 1-5
 
 # List of people (Telegram only) to tag in the «Meeting Message» message
 meeting_mention:
