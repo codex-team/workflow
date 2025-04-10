@@ -41,6 +41,7 @@ const PR_TIME = config.pr_time;
  * At 21:00 on every day-of-week from Monday through Friday.
  */
 const MEETING_TIME = config.meeting_time;
+const MEETING_NOTICE_TIME = config.meeting_notice_time;
 const octokit = new Octokit({ auth: TOKEN });
 
 const MEMBERS_QUERY = require('./queries/members');
@@ -388,6 +389,24 @@ function parseMeetingMessage(mentionList) {
  * Call the Github GraphQL API, parse its response to message and add that message as cron job.
  */
 async function main() {
+  if (MEETING_NOTICE_TIME) {
+    const meetingNoticeJob = new CronJob(
+      MEETING_NOTICE_TIME,
+      () => {
+        notify(`Meeting will start in 15 minutes🕒`)
+          .then(() => console.log('MeetingNotice Job Completed'))
+          .catch(HawkCatcher.send);
+      },
+      null,
+      true,
+      'Europe/Moskow'
+    );
+
+    meetingNoticeJob.start();
+    console.log('MeetingNotice notifier started');
+    console.log('Will notify at:' + MEETING_NOTICE_TIME);
+  }
+  
   if (MEETING_TIME) {
     const meetingJob = new CronJob(
       MEETING_TIME,
